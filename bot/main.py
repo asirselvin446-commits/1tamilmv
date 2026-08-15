@@ -389,10 +389,36 @@ async def auto_post(context: ContextTypes.DEFAULT_TYPE) -> None:
         except Exception as e:
             logger.error(f"Failed to push post to channel {Config.CHANNEL_ID}: {e}")
 
+def _start_health_server() -> None:
+    """Lightweight background HTTP server for Render/Koyeb Web Service health checks."""
+    import threading
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"1TamilVT-TG Bot is Live and Healthy!\n")
+
+        def log_message(self, format, *args):
+            return  # Suppress health check logs
+
+    def run_server():
+        try:
+            port = int(Config.PORT or 8080)
+            server = HTTPServer(("0.0.0.0", port), HealthHandler)
+            server.serve_forever()
+        except Exception as e:
+            logger.debug(f"Health server: {e}")
+
+    threading.Thread(target=run_server, daemon=True).start()
+
 # ── Main ─────────────────────────────────────────────────────────────
 def main() -> None:
     """Start the bot."""
     Config.validate()
+    _start_health_server()
 
     application = Application.builder().token(Config.TOKEN).build()
 
