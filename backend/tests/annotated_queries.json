@@ -1,0 +1,953 @@
+[
+  {
+    "id": 1,
+    "query": "How many new cases have been reported in Austria today?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": "austria"
+    }
+  },
+  {
+    "id": 2,
+    "query": "How many new Covid cases are there in the UK today?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": "united kingdom"
+    }
+  },
+  {
+    "id": 3,
+    "query": "How many vaccinations were administered on the 25.01.2022 in Austria?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "25.01.2022"
+      },
+      "location": "austria"
+    }
+  },
+  {
+    "id": 4,
+    "query": "How many people have been vaccinated so far in Austria?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "timeframe": null,
+      "location": "austria"
+    }
+  },
+  {
+    "id": 5,
+    "query": "How many people have tested positive for Covid in Germany today?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": "germany"
+    }
+  },
+  {
+    "id": 6,
+    "query": "How many cases in denmark today",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": "denmark"
+    }
+  },
+  {
+    "id": 7,
+    "query": "how many vaccines in denmark today?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": "denmark"
+    }
+  },
+  {
+    "id": 8,
+    "query": "Tell me the number of positive cases in denmark",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "timeframe": null,
+      "location": "denmark"
+    }
+  },
+  {
+    "id": 9,
+    "query": "how many people were infected in denmark in the past week",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "WEEK",
+        "text": "the past week"
+      },
+      "location": "denmark"
+    }
+  },
+  {
+    "id": 10,
+    "query": "how many people were vaccinated in egypt in the past week",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "WEEK",
+        "text": "the past week"
+      },
+      "location": "egypt"
+    }
+  },
+  {
+    "id": 11,
+    "query": "How many people from Finland have tested positive for Covid in the last year?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "YEAR",
+        "text": "the last year"
+      },
+      "location": "finland"
+    }
+  },
+  {
+    "id": 12,
+    "query": "How many cases are there today?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": null
+    }
+  },
+  {
+    "id": 13,
+    "query": "How many cases did we have yesterday?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "yesterday"
+      },
+      "location": null
+    }
+  },
+  {
+    "id": 14,
+    "query": "How many people got vaccinated today?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": null
+    }
+  },
+  {
+    "id": 15,
+    "query": "How many people will get vaccinated tomorrow? :P",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "tomorrow"
+      },
+      "location": null
+    }
+  },
+  {
+    "id": 16,
+    "query": "How many vaccines were administered a week ago?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "a week ago"
+      },
+      "location": null
+    }
+  },
+  {
+    "id": 17,
+    "query": "What is the total number of vaccinated people in Sweden?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "timeframe": null,
+      "location": "sweden"
+    }
+  },
+  {
+    "id": 18,
+    "query": "Give me the number of jabs administered in England in the last year",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "YEAR",
+        "text": "the last year"
+      },
+      "location": "england"
+    }
+  },
+  {
+    "id": 19,
+    "query": "number of vaccinations worldwide",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "timeframe": null,
+      "location": null
+    }
+  },
+  {
+    "id": 20,
+    "query": "vaccinations worldwide today",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": null
+    }
+  },
+  {
+    "id": 21,
+    "query": "How many vaccines have been given to people over the course of the last month in the country of Belgium?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "MONTH",
+        "text": "the last month"
+      },
+      "location": "belgium"
+    }
+  },
+  {
+    "id": 22,
+    "query": "How many positive tests have there been today in Italy?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": "italy"
+    }
+  },
+  {
+    "id": 23,
+    "query": "new cases today austria",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": "austria"
+    }
+  },
+  {
+    "id": 24,
+    "query": "corona tested positive yesterday europe",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "yesterday"
+      },
+      "location": "europe"
+    }
+  },
+  {
+    "id": 25,
+    "query": "Number of positive tests in russia",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "timeframe": null,
+      "location": "russia"
+    }
+  },
+  {
+    "id": 26,
+    "query": "Last year, how many people tested positive for the coronavirus in Spain alone?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "YEAR",
+        "text": "Last year"
+      },
+      "location": "spain"
+    }
+  },
+  {
+    "id": 27,
+    "query": "How many vaccinations were performed in Uganda on July 2nd, 2021?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "July 2nd, 2021"
+      },
+      "location": "uganda"
+    }
+  },
+  {
+    "id": 28,
+    "query": "How many vaccinations were performed in Hungary on July 2nd, 2019?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "July 2nd, 2019"
+      },
+      "location": "hungary"
+    }
+  },
+  {
+    "id": 29,
+    "query": "How many new cases were discovered in Serbia in 2021?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "YEAR",
+        "text": "2021"
+      },
+      "location": "serbia"
+    }
+  },
+  {
+    "id": 30,
+    "query": "How many new cases were discovered in Russia in 2018?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "YEAR",
+        "text": "2018"
+      },
+      "location": "russia"
+    }
+  },
+  {
+    "id": 31,
+    "query": "What is the peak number of confirmed cases in Hong Kong",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "hong kong",
+      "timeframe": null
+    }
+  },
+  {
+    "id": 32,
+    "query": "What is the peak number of vaccinated people in a day of Hong Kong",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "hong kong",
+      "timeframe": null
+    }
+  },
+  {
+    "id": 33,
+    "query": "How many new cases of COVID are there today in Hong Kong?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": "hong kong"
+    }
+  },
+  {
+    "id": 34,
+    "query": "How many new cases of COVID are this week in Hong Kong?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "WEEK",
+        "text": "this week"
+      },
+      "location": "hong kong"
+    }
+  },
+  {
+    "id": 35,
+    "query": "Which country has had the most corona cases?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "LOCATION",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "timeframe": null,
+      "location": null
+    }
+  },
+  {
+    "id": 36,
+    "query": "On which day were the most cases reported?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "DAY",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": null,
+      "timeframe": null
+    }
+  },
+  {
+    "id": 37,
+    "query": "In which country did most people get vaccinated?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "LOCATION",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "timeframe": null,
+      "location": null
+    }
+  },
+  {
+    "id": 38,
+    "query": "How many people are vaccinated?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "timeframe": null,
+      "location": null
+    }
+  },
+  {
+    "id": 39,
+    "query": "How many people were vaccinated today?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": null
+    }
+  },
+  {
+    "id": 40,
+    "query": "How many corona cases got reported today?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "timeframe": {
+        "type": "DAY",
+        "text": "today"
+      },
+      "location": null
+    }
+  },
+  {
+    "id": 41,
+    "query": "when did austria have the highest number of infections?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "DAY",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "austria",
+      "timeframe": null
+    }
+  },
+  {
+    "id": 42,
+    "query": "On which day was the highest number of new cases reported in Brazil?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "DAY",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "brazil",
+      "timeframe": null
+    }
+  },
+  {
+    "id": 43,
+    "query": "How many vaccine shots were administered in Austria on the 9th February 2022?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "ADMINISTERED_VACCINES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "austria",
+      "timeframe": {
+        "type": "DAY",
+        "text": "the 9th February 2022"
+      }
+    }
+  },
+  {
+    "id": 44,
+    "query": "Could you tell me how many new COVID cases were reported in Austria on 2nd February 2022?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "austria",
+      "timeframe": {
+        "type": "DAY",
+        "text": "2nd February 2022"
+      }
+    }
+  },
+  {
+    "id": 45,
+    "query": "How you doin'?",
+    "topic": "UNKNOWN",
+    "intent": {
+      "calculation_type": "UNKNOWN",
+      "value_type": "UNKNOWN",
+      "value_domain": "UNKNOWN",
+      "measurement_type": "UNKNOWN"
+    },
+    "slots": {
+      "location": null,
+      "timeframe": null
+    }
+  },
+  {
+    "id": 46,
+    "query": "What was the highest amount of cases recorded?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": null,
+      "timeframe": null
+    }
+  },
+  {
+    "id": 47,
+    "query": "How many people are vaccinated in Europe?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "location": "europe",
+      "timeframe": null
+    }
+  },
+  {
+    "id": 48,
+    "query": "how many cases do we have in austria",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "location": "austria",
+      "timeframe": null
+    }
+  },
+  {
+    "id": 49,
+    "query": "How many people are vaccinated in Europe?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "CUMULATIVE"
+    },
+    "slots": {
+      "location": "europe",
+      "timeframe": null
+    }
+  },
+  {
+    "id": 1000,
+    "query": "How many people got Covid yesterday in Austria?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "austria",
+      "timeframe": {
+        "type": "DAY",
+        "text": "yesterday"
+      }
+    }
+  },
+  {
+    "id": 1001,
+    "query": "How many people got the COVID vaccine yesterday in Austria?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "austria",
+      "timeframe": {
+        "type": "DAY",
+        "text": "yesterday"
+      }
+    }
+  },
+  {
+    "id": 1002,
+    "query": "tell me how many people were vaccinated against covid19 this week.",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "SUM",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": null,
+      "timeframe": {
+        "type": "WEEK",
+        "text": "this week"
+      }
+    }
+  },
+  {
+    "id": 1003,
+    "query": "which country had the highest number of cases last week.",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "LOCATION",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": null,
+      "timeframe": {
+        "type": "WEEK",
+        "text": "last week"
+      }
+    }
+  },
+  {
+    "id": 1004,
+    "query": "when did China have the most cases last month?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "DAY",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "china",
+      "timeframe": {
+        "type": "MONTH",
+        "text": "last month"
+      }
+    }
+  },
+  {
+    "id": 1005,
+    "query": "when did Italy have the most cases?",
+    "topic": "CASES",
+    "intent": {
+      "calculation_type": "MAXIMUM",
+      "value_type": "DAY",
+      "value_domain": "POSITIVE_CASES",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "italy",
+      "timeframe": null
+    }
+  },
+  {
+    "id": 1006,
+    "query": "how many people got the vaccine against COVID on March 2nd 2022 in Saudi Arabia?",
+    "topic": "VACCINATIONS",
+    "intent": {
+      "calculation_type": "RAW_VALUE",
+      "value_type": "NUMBER",
+      "value_domain": "VACCINATED_PEOPLE",
+      "measurement_type": "DAILY"
+    },
+    "slots": {
+      "location": "saudi arabia",
+      "timeframe": {
+        "type": "DAY",
+        "text": "March 2nd 2022"
+      }
+    }
+  }
+]

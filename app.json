@@ -1,0 +1,38 @@
+{
+  "name": "1TamilVT-TG",
+  "description": "Telegram Bot for 1TamilMV movie torrents",
+  "repository": "https://github.com/aj-2-c-2-a/1tamilvt-tg",
+  "logo": "https://telegra.ph/file/1tamilvt-tg-logo.png",
+  "keywords": ["telegram", "bot", "tamilmv", "1tamilmv", "torrent", "tamil movies"],
+  "env": {
+    "TOKEN": {
+      "description": "Your Telegram Bot Token from @BotFather",
+      "required": true
+    },
+    "CHANNEL_ID": {
+      "description": "Telegram Channel ID (e.g. -1001234567890)",
+      "required": true
+    },
+    "CHANNEL_USERNAME": {
+      "description": "Channel username without @",
+      "required": true
+    },
+    "TAMILMV_URL": {
+      "description": "1TamilMV base URL",
+      "value": "https://www.1tamilmv.fi",
+      "required": false
+    },
+    "WEBHOOK_URL": {
+      "description": "Webhook URL (auto-set by Heroku)",
+      "required": false
+    },
+    "PORT": {
+      "description": "Port to run on",
+      "value": "8080",
+      "required": false
+    }
+  },
+  "buildpacks": [
+    { "url": "heroku/python" }
+  ]
+}
