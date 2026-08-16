@@ -48,7 +48,7 @@ class TamilMVScraper:
         domains = self._get_domains()
         for domain in domains:
             try:
-                probe_timeout = aiohttp.ClientTimeout(total=4, connect=2)
+                probe_timeout = aiohttp.ClientTimeout(total=3, connect=2)
                 async with session.get(domain, headers=self.HEADERS, ssl=False, timeout=probe_timeout) as resp:
                     if resp.status == 200:
                         logger.info(f"Working domain found: {domain}")
@@ -248,7 +248,21 @@ class TamilMVScraper:
 
                 name = re.sub(r"^www\.[^ -]+ - ", "", name, flags=re.I)
                 size_match = re.search(r"(\d+(?:\.\d+)?\s*(?:GB|MB))", name, re.I)
-                size = size_match.group(1) if size_match else "N/A"
+                if size_match:
+                    size = size_match.group(1)
+                else:
+                    # Fallback to xl= parameter in magnet uri if present
+                    xl_match = re.search(r"xl=(\d+)", mag_href)
+                    if xl_match:
+                        bytes_val = int(xl_match.group(1))
+                        if bytes_val >= 1024 * 1024 * 1024:
+                            size = f"{bytes_val / (1024**3):.2f} GB"
+                        elif bytes_val >= 1024 * 1024:
+                            size = f"{bytes_val / (1024**2):.1f} MB"
+                        else:
+                            size = "N/A"
+                    else:
+                        size = "N/A"
 
                 torrents.append({
                     "name": name,
@@ -262,8 +276,22 @@ class TamilMVScraper:
                 text = a.get_text(strip=True)
                 if any(host in href.lower() for host in ["shrinkme", "cyberloom", "gofile", "mega.nz", "pixeldrain", "streamtape", "attachment.php"]):
                     if not any(d["url"] == href for d in direct_links):
+                        clean_name = re.sub(r"^www\.[^ -]+ - ", "", text, flags=re.I)
+                        if "attachment.php" in href.lower() or href.lower().endswith(".torrent") or text.lower().endswith(".torrent"):
+                            display_name = f"📄 {clean_name}" if len(clean_name) > 5 else "📄 Torrent File"
+                        elif "cyberloom" in href.lower():
+                            display_name = "⚡ CyberLoom Fast Direct Link"
+                        elif "gofile" in href.lower():
+                            display_name = "⚡ GoFile Direct Download"
+                        elif "pixeldrain" in href.lower():
+                            display_name = "⚡ PixelDrain Direct Download"
+                        elif "mega.nz" in href.lower():
+                            display_name = "⚡ Mega.nz Mirror"
+                        else:
+                            display_name = clean_name if len(clean_name) > 3 and not clean_name.startswith("http") else "Download Mirror"
+
                         direct_links.append({
-                            "name": text if len(text) > 3 and not text.startswith("http") else "Download Mirror",
+                            "name": display_name,
                             "url": href
                         })
 

@@ -1,6 +1,8 @@
 """Main entry point for 1TamilVT-TG Telegram Bot."""
 import asyncio
+import html
 import logging
+import re
 import sys
 from datetime import datetime
 from typing import Dict, List
@@ -57,83 +59,136 @@ def _build_main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_url: str, title: str = ""):
-    """Fetch and send movie topic details including poster and magnet links."""
+    """Fetch and send movie topic details including poster, magnet links, and mirrors."""
     wait_msg = await target.reply_text("⏳ Fetching magnet links & details... Please wait.")
-    details = await scraper.get_topic_details(topic_url)
+    try:
+        details = await scraper.get_topic_details(topic_url)
+    except Exception as e:
+        logger.error(f"Failed to fetch details for {topic_url}: {e}", exc_info=True)
+        details = {"error": str(e)}
 
     if not details or "error" in details:
-        await wait_msg.edit_text(f"❌ Failed to fetch topic details: {details.get('error', 'Unknown error')}")
+        err_text = html.escape(str(details.get("error", "Unknown error") if details else "Unknown error"))
+        await wait_msg.edit_text(f"❌ Failed to fetch topic details: {err_text}")
         return
 
     movie_title = details.get("title") or title or "Movie Details"
     poster_url = details.get("poster")
     torrents = details.get("torrents", [])
-
-    text_parts = [
-        f"🎬 <b>{movie_title}</b>\n",
-        f"🔗 <a href='{topic_url}'>View on 1TamilMV</a>\n",
-    ]
-
-    if torrents:
-        text_parts.append(f"🧲 <b>Available Torrent Releases ({len(torrents)}):</b>\n")
-        for i, t in enumerate(torrents, 1):
-            name = t.get("name", f"Release #{i}")
-            size = t.get("size", "N/A")
-            magnet = t.get("magnet", "")
-            text_parts.append(
-                f"<b>{i}. {name}</b>\n"
-                f"📦 Size: <code>{size}</code>\n"
-                f"🧲 <b>Magnet Link:</b> (Tap to copy)\n"
-                f"<code>{magnet}</code>\n"
-            )
     direct_links = details.get("direct_links", [])
-    if direct_links:
-        text_parts.append(f"\n📥 <b>Download Links / Mirrors ({len(direct_links)}):</b>\n")
-        for j, d in enumerate(direct_links[:6], 1):
-            d_name = d.get("name", f"Mirror #{j}")
-            d_url = d.get("url", "")
-            text_parts.append(f"• <a href='{d_url}'>{d_name}</a>\n")
 
-    if not torrents and not direct_links:
-        text_parts.append("\n⚠️ <i>No direct download links found in this topic. Open the website link to view topic details.</i>")
+    safe_title = html.escape(movie_title)
+    safe_topic_url = html.escape(topic_url)
 
-    full_text = "\n".join(text_parts)
+    header_text = (
+        f"🎬 <b>{safe_title}</b>\n\n"
+        f"📦 <b>Releases:</b> <code>{len(torrents)} available</code>\n"
+        f"🔗 <a href='{safe_topic_url}'>View on 1TamilMV</a>"
+    )
 
     buttons = [
-        [InlineKeyboardButton("🌐 Open 1TamilMV Topic", url=topic_url)],
+        [InlineKeyboardButton("🌐 Open on 1TamilMV", url=topic_url)],
     ]
     reply_markup = InlineKeyboardMarkup(buttons)
 
-    # Try sending poster with caption if text length fits Telegram's 1024 caption limit
-    poster_sent = False
-    if poster_url and len(full_text) <= 1000:
+    # 1. Send Header (with poster photo if available)
+    header_sent = False
+    if poster_url:
         try:
-            await wait_msg.delete()
             await target.reply_photo(
                 photo=poster_url,
-                caption=full_text,
+                caption=header_text,
                 parse_mode=ParseMode.HTML,
                 reply_markup=reply_markup,
             )
-            poster_sent = True
+            header_sent = True
         except Exception as e:
-            logger.debug(f"Could not send photo directly: {e}")
+            logger.debug(f"Could not send poster photo directly: {e}")
 
-    if not poster_sent:
-        # Edit waiting message with text
-        # If text is longer than 4096 chars, chunk it
-        if len(full_text) > 4000:
-            await wait_msg.delete()
-            # Send in chunks
-            for chunk in [full_text[i:i+4000] for i in range(0, len(full_text), 4000)]:
-                await target.reply_text(chunk, parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+    if not header_sent:
+        try:
+            await target.reply_text(
+                header_text,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=False,
+                reply_markup=reply_markup,
+            )
+            header_sent = True
+        except Exception as e:
+            logger.warning(f"Failed to send HTML header, falling back to plain text: {e}")
+            plain_header = f"🎬 {movie_title}\n\n📦 Releases: {len(torrents)} available\n🔗 {topic_url}"
+            try:
+                await target.reply_text(
+                    plain_header,
+                    disable_web_page_preview=False,
+                    reply_markup=reply_markup,
+                )
+            except Exception as e2:
+                logger.error(f"Failed to send fallback header: {e2}")
+
+    # Delete waiting message after header dispatch
+    try:
+        await wait_msg.delete()
+    except Exception:
+        pass
+
+    # 2. Build release and mirror blocks
+    release_blocks = []
+    for i, t in enumerate(torrents, 1):
+        t_name = html.escape(t.get("name", f"Release #{i}"))
+        t_size = html.escape(t.get("size", "N/A"))
+        t_mag = html.escape(t.get("magnet", ""))
+        block = (
+            f"🧲 <b>Release #{i}: {t_name}</b>\n"
+            f"📦 <b>Size:</b> <code>{t_size}</code>\n"
+            f"📋 <b>Magnet Link:</b> (Tap to copy)\n"
+            f"<code>{t_mag}</code>"
+        )
+        release_blocks.append(block)
+
+    mirror_blocks = []
+    if direct_links:
+        lines = ["📥 <b>Download Mirrors & Torrent Files:</b>"]
+        for j, d in enumerate(direct_links[:10], 1):
+            d_name = html.escape(d.get("name", f"Mirror #{j}"))
+            d_url = html.escape(d.get("url", ""))
+            lines.append(f"• <a href='{d_url}'>{d_name}</a>")
+        mirror_blocks.append("\n".join(lines))
+
+    if not release_blocks and not mirror_blocks:
+        release_blocks.append("⚠️ <i>No direct download links found in this topic. Open the website link to view topic details.</i>")
+
+    # 3. Group blocks into messages under 3800 chars without breaking tags
+    grouped_messages = []
+    current_msg = ""
+    for block in release_blocks + mirror_blocks:
+        if len(current_msg) + len(block) + 2 > 3800:
+            if current_msg:
+                grouped_messages.append(current_msg.strip())
+            current_msg = block + "\n\n"
         else:
-            await wait_msg.edit_text(
-                full_text,
+            current_msg += block + "\n\n"
+    if current_msg.strip():
+        grouped_messages.append(current_msg.strip())
+
+    # 4. Dispatch release messages
+    for msg in grouped_messages:
+        try:
+            await target.reply_text(
+                msg,
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True,
-                reply_markup=reply_markup,
             )
+        except Exception as e:
+            logger.warning(f"Error sending HTML chunk, retrying as plain text: {e}")
+            plain_text = re.sub(r"<[^>]+>", "", msg)
+            try:
+                await target.reply_text(
+                    plain_text,
+                    disable_web_page_preview=True,
+                )
+            except Exception as e2:
+                logger.error(f"Failed to send plain text message: {e2}")
 
 # ── Handlers ─────────────────────────────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -185,9 +240,11 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     text = f"🆕 <b>Latest Movies on 1TamilMV</b> ({len(movies)} found)\n\n"
     for i, movie in enumerate(movies, 1):
+        safe_title = html.escape(movie["title"])
+        safe_quality = html.escape(movie["quality"])
         text += (
-            f"<b>{i}. {movie['title']}</b>\n"
-            f"   📊 Quality: <code>{movie['quality']}</code>\n\n"
+            f"<b>{i}. {safe_title}</b>\n"
+            f"   📊 Quality: <code>{safe_quality}</code>\n\n"
         )
     text += "👇 <i>Tap a button below to get Magnet links & details:</i>"
 
@@ -225,12 +282,13 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     query = " ".join(context.args)
-    wait_msg = await update.message.reply_text(f"🔍 Searching 1TamilMV for '<b>{query}</b>'...", parse_mode=ParseMode.HTML)
+    safe_query = html.escape(query)
+    wait_msg = await update.message.reply_text(f"🔍 Searching 1TamilMV for '<b>{safe_query}</b>'...", parse_mode=ParseMode.HTML)
 
     movies = await scraper.search(query, limit=10)
     if not movies:
         await wait_msg.edit_text(
-            f"❌ No releases found for '<b>{query}</b>'.\n"
+            f"❌ No releases found for '<b>{safe_query}</b>'.\n"
             f"Tip: Try searching with a single key word (e.g. <code>/search Idhayam</code> or <code>/search Murali</code>).",
             parse_mode=ParseMode.HTML,
         )
@@ -239,11 +297,13 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if chat_id:
         movie_cache[chat_id] = movies
 
-    text = f"🔍 <b>Search Results for '{query}'</b> ({len(movies)} found)\n\n"
+    text = f"🔍 <b>Search Results for '{safe_query}'</b> ({len(movies)} found)\n\n"
     for i, movie in enumerate(movies, 1):
+        safe_title = html.escape(movie["title"])
+        safe_quality = html.escape(movie["quality"])
         text += (
-            f"<b>{i}. {movie['title']}</b>\n"
-            f"   📊 Quality: <code>{movie['quality']}</code>\n\n"
+            f"<b>{i}. {safe_title}</b>\n"
+            f"   📊 Quality: <code>{safe_quality}</code>\n\n"
         )
     text += "👇 <i>Tap a button below to get Magnet links:</i>"
 
@@ -290,8 +350,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             else:
                 await query.message.reply_text("⚠️ Movie selection expired. Please run /latest or /search again.")
         except Exception as e:
-            logger.error(f"Callback error: {e}")
-            await query.message.reply_text("❌ Failed to load movie details.")
+            logger.exception(f"Callback error processing {data}: {e}")
+            try:
+                await query.message.reply_text("❌ Failed to load movie details. Please try again.")
+            except Exception:
+                pass
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show bot and scraper health status."""
@@ -302,13 +365,16 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     uptime = datetime.now() - last_scrape_time if last_scrape_time != datetime.min else None
     uptime_str = f"{uptime.total_seconds():.0f}s ago" if uptime else "Never"
 
+    active_mirror = html.escape(scraper.working_domain or Config.TAMILMV_URL or "N/A")
+    channel_name = html.escape(Config.CHANNEL_USERNAME or "Not Set")
+
     text = (
         f"🤖 <b>1TamilVT-TG Bot Status</b>\n\n"
-        f"🌐 <b>Active Mirror:</b> <code>{scraper.working_domain or Config.TAMILMV_URL or 'N/A'}</code>\n"
+        f"🌐 <b>Active Mirror:</b> <code>{active_mirror}</code>\n"
         f"🕐 <b>Last Scrape:</b> {uptime_str}\n"
         f"📦 <b>Cached Releases:</b> {len(last_movies)}\n"
         f"⏱️ <b>Auto-Scrape Interval:</b> {Config.SCRAPE_INTERVAL}s\n"
-        f"📢 <b>Target Channel:</b> @{Config.CHANNEL_USERNAME or 'Not Set'}\n"
+        f"📢 <b>Target Channel:</b> @{channel_name}\n"
         f"🟢 <b>Status:</b> Operational & Ready"
     )
     await msg_target.reply_text(text, parse_mode=ParseMode.HTML)
@@ -350,14 +416,18 @@ async def auto_post(context: ContextTypes.DEFAULT_TYPE) -> None:
         poster = details.get("poster")
         title = details.get("title") or movie["title"]
 
+        safe_title = html.escape(title)
+        safe_quality = html.escape(movie["quality"])
+        safe_url = html.escape(url)
+
         caption = (
-            f"🎬 <b>{title}</b>\n"
-            f"📊 Quality: <code>{movie['quality']}</code>\n"
+            f"🎬 <b>{safe_title}</b>\n"
+            f"📊 Quality: <code>{safe_quality}</code>\n"
         )
         if torrents:
             caption += f"📦 Releases: <code>{len(torrents)} versions</code>\n"
         caption += (
-            f"🔗 <a href='{url}'>Download from 1TamilMV</a>\n\n"
+            f"🔗 <a href='{safe_url}'>Download from 1TamilMV</a>\n\n"
             f"#TamilMV #Kollywood #Movies"
         )
 
