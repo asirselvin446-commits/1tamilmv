@@ -46,6 +46,13 @@ movie_cache: Dict[int, List[Dict]] = {}
 posted_topics: set = set()
 
 # ── Helpers ──────────────────────────────────────────────────────────
+def is_authorized(user_id: int) -> bool:
+    """Check if the user has permission to use the bot."""
+    authorized_users = Config.get_authorized_users()
+    if not authorized_users:
+        return True  # Public mode if no restriction configured
+    return user_id in authorized_users
+
 def _build_main_menu() -> InlineKeyboardMarkup:
     """Build persistent quick action buttons."""
     buttons = [
@@ -54,7 +61,9 @@ def _build_main_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton("📊 Bot Status", callback_data="cmd_status"),
         ],
     ]
-    if Config.CHANNEL_USERNAME:
+    if Config.CHANNEL_INVITE_LINK:
+        buttons.append([InlineKeyboardButton("🔒 Private Channel", url=Config.CHANNEL_INVITE_LINK)])
+    elif Config.CHANNEL_USERNAME:
         buttons.append([InlineKeyboardButton("📢 Channel", url=f"https://t.me/{Config.CHANNEL_USERNAME}")])
     return InlineKeyboardMarkup(buttons)
 
@@ -221,6 +230,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message:
         return
 
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_authorized(user_id):
+        await update.message.reply_text(
+            "⛔ <b>Access Denied:</b> This bot is set to private mode for authorized users only.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
     welcome = (
         "👋 <b>Welcome to 1TamilVT-TG!</b>\n\n"
         "🎥 I automatically fetch and deliver the <b>latest Tamil, Telugu, Malayalam & Hindi movie torrents</b> "
@@ -241,6 +258,14 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Fetch and display latest movie releases with interactive buttons."""
     global last_scrape_time, last_movies
+
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_authorized(user_id):
+        if update.message:
+            await update.message.reply_text("⛔ <b>Access Denied:</b> This bot is set to private mode.", parse_mode=ParseMode.HTML)
+        elif update.callback_query:
+            await update.callback_query.answer("⛔ Access Denied: Private mode.", show_alert=True)
+        return
 
     msg_target = update.message or (update.callback_query.message if update.callback_query else None)
     chat_id = update.effective_chat.id if update.effective_chat else 0
@@ -294,6 +319,11 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Search 1TamilMV by query."""
     if not update.message:
+        return
+
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_authorized(user_id):
+        await update.message.reply_text("⛔ <b>Access Denied:</b> This bot is set to private mode.", parse_mode=ParseMode.HTML)
         return
 
     chat_id = update.effective_chat.id if update.effective_chat else 0
@@ -354,6 +384,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     if not query:
         return
+
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_authorized(user_id):
+        await query.answer("⛔ Access Denied: This bot is in private mode.", show_alert=True)
+        return
+
     await query.answer()
 
     data = query.data or ""
@@ -383,6 +419,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show bot and scraper health status."""
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_authorized(user_id):
+        if update.message:
+            await update.message.reply_text("⛔ <b>Access Denied:</b> This bot is set to private mode.", parse_mode=ParseMode.HTML)
+        elif update.callback_query:
+            await update.callback_query.answer("⛔ Access Denied: Private mode.", show_alert=True)
+        return
+
     msg_target = update.message or (update.callback_query.message if update.callback_query else None)
     if not msg_target:
         return
@@ -392,10 +436,13 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     active_mirror = html.escape(scraper.working_domain or Config.TAMILMV_URL or "N/A")
     channel_name = html.escape(Config.CHANNEL_USERNAME or "Not Set")
+    auth_users = Config.get_authorized_users()
+    privacy_status = f"Private ({len(auth_users)} authorized)" if auth_users else "Public"
 
     text = (
         f"🤖 <b>1TamilVT-TG Bot Status</b>\n\n"
         f"🌐 <b>Active Mirror:</b> <code>{active_mirror}</code>\n"
+        f"🔒 <b>Privacy Mode:</b> <code>{privacy_status}</code>\n"
         f"🕐 <b>Last Scrape:</b> {uptime_str}\n"
         f"📦 <b>Cached Releases:</b> {len(last_movies)}\n"
         f"⏱️ <b>Auto-Scrape Interval:</b> {Config.SCRAPE_INTERVAL}s\n"
@@ -406,6 +453,10 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle unknown commands."""
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_authorized(user_id):
+        return
+
     if update.message:
         await update.message.reply_text(
             "❓ Unknown command. Use /help to see available options.",

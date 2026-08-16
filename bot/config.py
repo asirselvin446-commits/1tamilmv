@@ -9,6 +9,13 @@ class Config:
     TOKEN: str = os.getenv("TOKEN", "")
     CHANNEL_ID: int = int(os.getenv("CHANNEL_ID", "0"))
     CHANNEL_USERNAME: str = os.getenv("CHANNEL_USERNAME", "").lstrip("@")
+    # Access control: Set ADMIN_ID or ALLOWED_USERS to restrict access to yourself only
+    ADMIN_ID: int = int(os.getenv("ADMIN_ID", "0"))
+    ALLOWED_USERS: list = [
+        int(x.strip()) for x in os.getenv("ALLOWED_USERS", "").split(",") if x.strip().lstrip("-").isdigit()
+    ]
+    CHANNEL_INVITE_LINK: str = os.getenv("CHANNEL_INVITE_LINK", "")
+
     TAMILMV_URL: str = os.getenv("TAMILMV_URL", "https://www.1tamilmv.ing")
     WEBHOOK_URL: str = os.getenv("WEBHOOK_URL", "")
     PORT: int = int(os.getenv("PORT", "8080"))
@@ -32,10 +39,16 @@ class Config:
     ]
 
     @classmethod
+    def get_authorized_users(cls) -> set:
+        """Return set of authorized user IDs."""
+        users = set(cls.ALLOWED_USERS)
+        if cls.ADMIN_ID:
+            users.add(cls.ADMIN_ID)
+        return users
+
+    @classmethod
     def validate(cls) -> bool:
         """Validate required config."""
         if not cls.TOKEN:
             raise ValueError("TOKEN is required. Get one from @BotFather.")
-        if cls.CHANNEL_ID == 0:
-            raise ValueError("CHANNEL_ID is required.")
         return True
