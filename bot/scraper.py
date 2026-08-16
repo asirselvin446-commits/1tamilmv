@@ -326,19 +326,19 @@ class TamilMVScraper:
                     })
                 i += 1
 
-            # 2. If NO torrent/magnet releases found, extract genuine alternate cloud links (excluding ad shorteners)
+            # 2. If NO torrent/magnet releases found, extract alternate / external download links (fallback)
             if not releases:
                 alt_idx = 1
                 for a in all_links:
                     href = a["href"]
                     text = a.get_text(strip=True)
-                    if any(bad in href.lower() for bad in ["t.me/", "/topic/", "/forum/", "/profile/", "/login", ".jpg", ".png", ".gif", ".webp", "javascript:"] + AD_DOMAINS):
+                    if any(bad in href.lower() for bad in ["t.me/", "/topic/", "/forum/", "/profile/", "/login", ".jpg", ".png", ".gif", ".webp", "javascript:"]):
                         continue
-                    if any(host in href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "1fichier", "mediafire", "terabox", "dropbox", "streamtape", "drive.google.com"]):
+                    if href.startswith("http://") or href.startswith("https://"):
                         if not any(r.get("direct_url") == href for r in releases):
-                            label = text if text and len(text) > 3 and not text.startswith("http") else f"Cloud Mirror #{alt_idx}"
+                            label = text if text and len(text) > 3 and not text.startswith("http") else f"Alternate Link #{alt_idx}"
                             releases.append({
-                                "name": f"Cloud Mirror #{alt_idx} ({label})" if label != f"Cloud Mirror #{alt_idx}" else f"Cloud Mirror #{alt_idx}",
+                                "name": f"Alternate Link #{alt_idx} ({label})" if label != f"Alternate Link #{alt_idx}" else f"Alternate Link #{alt_idx}",
                                 "size": "N/A",
                                 "torrent_url": "",
                                 "magnet": "",
