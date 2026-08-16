@@ -237,9 +237,83 @@ class TamilMVScraper:
 
         torrents = []
         direct_links = []
+        releases = []
 
         if comment:
-            # 1. Magnets
+            all_links = comment.find_all("a", href=True)
+
+            # 1. Structured release extraction
+            i = 0
+            while i < len(all_links):
+                a = all_links[i]
+                href = a["href"]
+                text = a.get_text(strip=True)
+
+                if "attachment.php" in href or href.lower().endswith(".torrent"):
+                    raw_name = text or ""
+                    clean_name = re.sub(r"^www\.[^ -]+ - ", "", raw_name, flags=re.I)
+                    clean_name = re.sub(r"\.torrent$", "", clean_name, flags=re.I)
+
+                    size_match = re.search(r"(\d+(?:\.\d+)?\s*(?:GB|MB))", clean_name, re.I)
+                    size = size_match.group(1) if size_match else "N/A"
+
+                    magnet_url = ""
+                    direct_url = ""
+
+                    # Scan siblings ahead for magnet & direct cloud links
+                    for j in range(i + 1, min(i + 4, len(all_links))):
+                        next_href = all_links[j]["href"]
+                        if next_href.startswith("magnet:"):
+                            magnet_url = next_href
+                            if size == "N/A":
+                                xl_match = re.search(r"xl=(\d+)", next_href)
+                                if xl_match:
+                                    bytes_val = int(xl_match.group(1))
+                                    if bytes_val >= 1024**3:
+                                        size = f"{bytes_val / (1024**3):.2f} GB"
+                                    elif bytes_val >= 1024**2:
+                                        size = f"{bytes_val / (1024**2):.1f} MB"
+                        elif any(host in next_href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "shrinkme"]):
+                            direct_url = next_href
+
+                    releases.append({
+                        "name": clean_name if len(clean_name) > 5 else title,
+                        "size": size,
+                        "torrent_url": urljoin(topic_url, href),
+                        "magnet": magnet_url,
+                        "direct_url": direct_url,
+                    })
+                elif href.startswith("magnet:") and not any(r.get("magnet") == href for r in releases):
+                    mag_href = href
+                    name_match = re.search(r"dn=([^&]+)", mag_href)
+                    name = unquote(name_match.group(1)) if name_match else title
+                    name = re.sub(r"^www\.[^ -]+ - ", "", name, flags=re.I)
+                    size_match = re.search(r"(\d+(?:\.\d+)?\s*(?:GB|MB))", name, re.I)
+                    if size_match:
+                        size = size_match.group(1)
+                    else:
+                        xl_match = re.search(r"xl=(\d+)", mag_href)
+                        if xl_match:
+                            bytes_val = int(xl_match.group(1))
+                            if bytes_val >= 1024**3:
+                                size = f"{bytes_val / (1024**3):.2f} GB"
+                            elif bytes_val >= 1024**2:
+                                size = f"{bytes_val / (1024**2):.1f} MB"
+                            else:
+                                size = "N/A"
+                        else:
+                            size = "N/A"
+
+                    releases.append({
+                        "name": name,
+                        "size": size,
+                        "torrent_url": "",
+                        "magnet": mag_href,
+                        "direct_url": "",
+                    })
+                i += 1
+
+            # 2. Magnets list
             magnet_tags = comment.find_all("a", href=lambda h: h and h.startswith("magnet:"))
             for m in magnet_tags:
                 mag_href = m["href"]
@@ -251,7 +325,6 @@ class TamilMVScraper:
                 if size_match:
                     size = size_match.group(1)
                 else:
-                    # Fallback to xl= parameter in magnet uri if present
                     xl_match = re.search(r"xl=(\d+)", mag_href)
                     if xl_match:
                         bytes_val = int(xl_match.group(1))
@@ -270,7 +343,7 @@ class TamilMVScraper:
                     "size": size,
                 })
 
-            # 2. Torrent attachments & direct download hosts
+            # 3. Direct links and torrent attachments
             for a in comment.find_all("a", href=True):
                 href = a["href"]
                 text = a.get_text(strip=True)
@@ -299,6 +372,7 @@ class TamilMVScraper:
             "title": title,
             "url": topic_url,
             "poster": poster,
+            "releases": releases,
             "torrents": torrents,
             "direct_links": direct_links,
         }

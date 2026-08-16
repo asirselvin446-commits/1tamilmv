@@ -74,21 +74,34 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
 
     movie_title = details.get("title") or title or "Movie Details"
     poster_url = details.get("poster")
+    releases = details.get("releases", [])
     torrents = details.get("torrents", [])
     direct_links = details.get("direct_links", [])
 
     safe_title = html.escape(movie_title)
     safe_topic_url = html.escape(topic_url)
 
+    total_releases = len(releases) if releases else len(torrents)
     header_text = (
         f"🎬 <b>{safe_title}</b>\n\n"
-        f"📦 <b>Releases:</b> <code>{len(torrents)} available</code>\n"
-        f"🔗 <a href='{safe_topic_url}'>View on 1TamilMV</a>"
+        f"📦 <b>Releases:</b> <code>{total_releases} available</code>\n"
+        f"🔗 <a href='{safe_topic_url}'>View on 1TamilMV</a>\n\n"
+        f"👇 <i>Tap any button below to start downloading:</i>"
     )
 
-    buttons = [
-        [InlineKeyboardButton("🌐 Open on 1TamilMV", url=topic_url)],
-    ]
+    buttons = []
+    # Add direct tap-to-download buttons for each release
+    for i, r in enumerate(releases[:6], 1):
+        row = []
+        size_str = f" ({r['size']})" if r.get('size') and r['size'] != 'N/A' else ""
+        if r.get("torrent_url"):
+            row.append(InlineKeyboardButton(f"📥 Download #{i}{size_str}", url=r["torrent_url"]))
+        if r.get("direct_url"):
+            row.append(InlineKeyboardButton(f"⚡ Fast #{i}", url=r["direct_url"]))
+        if row:
+            buttons.append(row)
+
+    buttons.append([InlineKeyboardButton("🌐 Open on 1TamilMV", url=topic_url)])
     reply_markup = InlineKeyboardMarkup(buttons)
 
     # 1. Send Header (with poster photo if available)
@@ -116,7 +129,7 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
             header_sent = True
         except Exception as e:
             logger.warning(f"Failed to send HTML header, falling back to plain text: {e}")
-            plain_header = f"🎬 {movie_title}\n\n📦 Releases: {len(torrents)} available\n🔗 {topic_url}"
+            plain_header = f"🎬 {movie_title}\n\n📦 Releases: {total_releases} available\n🔗 {topic_url}"
             try:
                 await target.reply_text(
                     plain_header,
@@ -132,22 +145,31 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
     except Exception:
         pass
 
-    # 2. Build release and mirror blocks
+    # 2. Build release and mirror blocks with tap-to-download links
     release_blocks = []
-    for i, t in enumerate(torrents, 1):
-        t_name = html.escape(t.get("name", f"Release #{i}"))
-        t_size = html.escape(t.get("size", "N/A"))
-        t_mag = html.escape(t.get("magnet", ""))
-        block = (
-            f"🧲 <b>Release #{i}: {t_name}</b>\n"
-            f"📦 <b>Size:</b> <code>{t_size}</code>\n"
-            f"📋 <b>Magnet Link:</b> (Tap to copy)\n"
-            f"<code>{t_mag}</code>"
-        )
-        release_blocks.append(block)
+    items_to_display = releases if releases else torrents
+    for i, item in enumerate(items_to_display, 1):
+        t_name = html.escape(item.get("name", f"Release #{i}"))
+        t_size = html.escape(item.get("size", "N/A"))
+        t_mag = html.escape(item.get("magnet", ""))
+        t_torrent_url = html.escape(item.get("torrent_url", ""))
+        t_direct_url = html.escape(item.get("direct_url", ""))
+
+        lines = [
+            f"🎬 <b>Release #{i}: {t_name}</b>",
+            f"📦 <b>Size:</b> <code>{t_size}</code>",
+        ]
+        if t_torrent_url:
+            lines.append(f"👉 <a href='{t_torrent_url}'>📥 <b>Tap to Download (.torrent file)</b></a>")
+        if t_direct_url:
+            lines.append(f"👉 <a href='{t_direct_url}'>⚡ <b>Tap for Fast Cloud Link</b></a>")
+        if t_mag:
+            lines.append(f"🧲 <b>Magnet Link:</b> (Tap code to copy)\n<code>{t_mag}</code>")
+
+        release_blocks.append("\n".join(lines))
 
     mirror_blocks = []
-    if direct_links:
+    if direct_links and not releases:
         lines = ["📥 <b>Download Mirrors & Torrent Files:</b>"]
         for j, d in enumerate(direct_links[:10], 1):
             d_name = html.escape(d.get("name", f"Mirror #{j}"))
@@ -431,12 +453,20 @@ async def auto_post(context: ContextTypes.DEFAULT_TYPE) -> None:
             f"#TamilMV #Kollywood #Movies"
         )
 
-        buttons = [
-            [InlineKeyboardButton("🌐 Open 1TamilMV Topic", url=url)],
-        ]
-        if torrents and torrents[0].get("magnet"):
-            buttons.append([InlineKeyboardButton("🧲 Copy Magnet Link", url=url)])
+        buttons = []
+        releases = details.get("releases", [])
+        if releases:
+            for i, r in enumerate(releases[:4], 1):
+                row = []
+                size_str = f" ({r['size']})" if r.get('size') and r['size'] != 'N/A' else ""
+                if r.get("torrent_url"):
+                    row.append(InlineKeyboardButton(f"📥 Download #{i}{size_str}", url=r["torrent_url"]))
+                if r.get("direct_url"):
+                    row.append(InlineKeyboardButton(f"⚡ Fast #{i}", url=r["direct_url"]))
+                if row:
+                    buttons.append(row)
 
+        buttons.append([InlineKeyboardButton("🌐 Open on 1TamilMV", url=url)])
         keyboard = InlineKeyboardMarkup(buttons)
 
         try:
