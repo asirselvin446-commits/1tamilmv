@@ -45,14 +45,32 @@ last_movies: List[Dict] = []
 movie_cache: Dict[int, List[Dict]] = {}
 # History of posted URLs to prevent duplicates in channel
 posted_topics: set = set()
+# Dynamic list of allowed users added via /allow command
+dynamic_allowed_users: set = set()
 
 # ── Helpers ──────────────────────────────────────────────────────────
 def is_authorized(user_id: int) -> bool:
     """Check if the user has permission to use the bot."""
-    authorized_users = Config.get_authorized_users()
+    authorized_users = Config.get_authorized_users().union(dynamic_allowed_users)
     if not authorized_users:
         return True  # Public mode if no restriction configured
     return user_id in authorized_users
+
+def is_admin(user_id: int) -> bool:
+    """Check if the user is the bot administrator."""
+    return Config.ADMIN_ID != 0 and user_id == Config.ADMIN_ID
+
+async def _send_access_denied(msg_or_query, user_id: int):
+    """Send user-friendly access denied message showing their user ID."""
+    denied_text = (
+        f"⛔ <b>Access Denied:</b> This bot is set to private mode.\n\n"
+        f"👤 <b>Your Telegram User ID:</b> <code>{user_id}</code>\n"
+        f"<i>Share this ID with the bot admin to get access.</i>"
+    )
+    if hasattr(msg_or_query, "reply_text"):
+        await msg_or_query.reply_text(denied_text, parse_mode=ParseMode.HTML)
+    elif hasattr(msg_or_query, "answer"):
+        await msg_or_query.answer(f"⛔ Access Denied (ID: {user_id}). Ask admin for access.", show_alert=True)
 
 def _build_main_menu() -> InlineKeyboardMarkup:
     """Build persistent quick action buttons."""
@@ -235,10 +253,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user_id = update.effective_user.id if update.effective_user else 0
     if not is_authorized(user_id):
-        await update.message.reply_text(
-            "⛔ <b>Access Denied:</b> This bot is set to private mode for authorized users only.",
-            parse_mode=ParseMode.HTML,
-        )
+        await _send_access_denied(update.message, user_id)
         return
 
     welcome = (
@@ -316,10 +331,7 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user_id = update.effective_user.id if update.effective_user else 0
     if not is_authorized(user_id):
-        if update.message:
-            await update.message.reply_text("⛔ <b>Access Denied:</b> This bot is set to private mode.", parse_mode=ParseMode.HTML)
-        elif update.callback_query:
-            await update.callback_query.answer("⛔ Access Denied: Private mode.", show_alert=True)
+        await _send_access_denied(update.message or update.callback_query, user_id)
         return
 
     msg_target = update.message or (update.callback_query.message if update.callback_query else None)
@@ -365,7 +377,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user_id = update.effective_user.id if update.effective_user else 0
     if not is_authorized(user_id):
-        await update.message.reply_text("⛔ <b>Access Denied:</b> This bot is set to private mode.", parse_mode=ParseMode.HTML)
+        await _send_access_denied(update.message, user_id)
         return
 
     chat_id = update.effective_chat.id if update.effective_chat else 0
@@ -479,10 +491,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show bot and scraper health status."""
     user_id = update.effective_user.id if update.effective_user else 0
     if not is_authorized(user_id):
-        if update.message:
-            await update.message.reply_text("⛔ <b>Access Denied:</b> This bot is set to private mode.", parse_mode=ParseMode.HTML)
-        elif update.callback_query:
-            await update.callback_query.answer("⛔ Access Denied: Private mode.", show_alert=True)
+        await _send_access_denied(update.message or update.callback_query, user_id)
         return
 
     msg_target = update.message or (update.callback_query.message if update.callback_query else None)
@@ -494,8 +503,8 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     active_mirror = html.escape(scraper.working_domain or Config.TAMILMV_URL or "N/A")
     channel_name = html.escape(Config.CHANNEL_USERNAME or "Not Set")
-    auth_users = Config.get_authorized_users()
-    privacy_status = f"Private ({len(auth_users)} authorized)" if auth_users else "Public"
+    all_auth = Config.get_authorized_users().union(dynamic_allowed_users)
+    privacy_status = f"Private ({len(all_auth)} authorized)" if all_auth else "Public"
 
     text = (
         f"🤖 <b>1TamilVT-TG Bot Status</b>\n\n"
@@ -516,7 +525,7 @@ async def text_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     user_id = update.effective_user.id if update.effective_user else 0
     if not is_authorized(user_id):
-        await update.message.reply_text("⛔ <b>Access Denied:</b> This bot is set to private mode.", parse_mode=ParseMode.HTML)
+        await _send_access_denied(update.message, user_id)
         return
 
     query = update.message.text.strip()
@@ -588,6 +597,91 @@ async def inline_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.inline_query.answer(results, cache_time=300)
     except Exception as e:
         logger.debug(f"Inline query answer error: {e}")
+
+async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show Telegram user ID, chat ID, and authorization status."""
+    if not update.message:
+        return
+    user = update.effective_user
+    user_id = user.id if user else 0
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    auth = "Authorized ✅" if is_authorized(user_id) else "Unauthorized ❌"
+    admin_badge = " (Admin 👑)" if is_admin(user_id) else ""
+    text = (
+        f"👤 <b>Your Telegram User ID:</b> <code>{user_id}</code>\n"
+        f"💬 <b>Chat ID:</b> <code>{chat_id}</code>\n"
+        f"🔒 <b>Status:</b> <code>{auth}</code>{admin_badge}\n\n"
+        f"<i>Share your User ID with the bot admin to get access.</i>"
+    )
+    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+
+async def allow_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command: authorize a friend / user ID."""
+    if not update.message:
+        return
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_admin(user_id):
+        await update.message.reply_text("⛔ Only the bot admin can add authorized users.", parse_mode=ParseMode.HTML)
+        return
+
+    if not context.args or not context.args[0].isdigit():
+        await update.message.reply_text(
+            "⚠️ <b>Usage:</b> <code>/allow 123456789</code>\n"
+            "Please provide a numeric Telegram User ID.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    target_id = int(context.args[0])
+    dynamic_allowed_users.add(target_id)
+    await update.message.reply_text(
+        f"✅ User <code>{target_id}</code> is now authorized to use this bot!",
+        parse_mode=ParseMode.HTML,
+    )
+
+async def revoke_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command: revoke a user ID."""
+    if not update.message:
+        return
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_admin(user_id):
+        await update.message.reply_text("⛔ Only the bot admin can revoke access.", parse_mode=ParseMode.HTML)
+        return
+
+    if not context.args or not context.args[0].isdigit():
+        await update.message.reply_text(
+            "⚠️ <b>Usage:</b> <code>/revoke 123456789</code>\n"
+            "Please provide a numeric Telegram User ID.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    target_id = int(context.args[0])
+    dynamic_allowed_users.discard(target_id)
+    if target_id in Config.ALLOWED_USERS:
+        Config.ALLOWED_USERS.remove(target_id)
+    await update.message.reply_text(
+        f"🚫 Access revoked for user <code>{target_id}</code>.",
+        parse_mode=ParseMode.HTML,
+    )
+
+async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command: list all authorized users."""
+    if not update.message:
+        return
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_admin(user_id):
+        await update.message.reply_text("⛔ Only the bot admin can view authorized users.", parse_mode=ParseMode.HTML)
+        return
+
+    all_auth = Config.get_authorized_users().union(dynamic_allowed_users)
+    lines = [f"👥 <b>Authorized Users ({len(all_auth)} total):</b>"]
+    if Config.ADMIN_ID:
+        lines.append(f"👑 <b>Admin:</b> <code>{Config.ADMIN_ID}</code>")
+    for uid in sorted(all_auth):
+        if uid != Config.ADMIN_ID:
+            lines.append(f"• <code>{uid}</code>")
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle unknown commands."""
@@ -720,6 +814,10 @@ def main() -> None:
     application.add_handler(CommandHandler("latest", latest))
     application.add_handler(CommandHandler("search", search))
     application.add_handler(CommandHandler("status", status))
+    application.add_handler(CommandHandler(["id", "myid"], id_cmd))
+    application.add_handler(CommandHandler(["allow", "add"], allow_user))
+    application.add_handler(CommandHandler(["revoke", "remove"], revoke_user))
+    application.add_handler(CommandHandler(["users", "allowed"], list_users))
 
     # Interactive buttons callback handler
     application.add_handler(CallbackQueryHandler(handle_callback))
