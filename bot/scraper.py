@@ -313,7 +313,31 @@ class TamilMVScraper:
                     })
                 i += 1
 
-            # 2. Magnets list
+            # 2. If NO torrent/magnet releases found, extract alternate download links
+            if not releases:
+                alt_idx = 1
+                for a in all_links:
+                    href = a["href"]
+                    text = a.get_text(strip=True)
+                    if any(bad in href.lower() for bad in ["t.me/", "/topic/", "/forum/", "/profile/", "/login", ".jpg", ".png", ".gif", ".webp", "javascript:"]):
+                        continue
+                    if href.startswith("http://") or href.startswith("https://"):
+                        if not any(r.get("direct_url") == href for r in releases):
+                            label = text if text and len(text) > 3 and not text.startswith("http") else f"Alternate Link #{alt_idx}"
+                            releases.append({
+                                "name": f"Alternate Link #{alt_idx} ({label})" if label != f"Alternate Link #{alt_idx}" else f"Alternate Link #{alt_idx}",
+                                "size": "N/A",
+                                "torrent_url": "",
+                                "magnet": "",
+                                "direct_url": href,
+                            })
+                            direct_links.append({
+                                "name": f"⚡ {label}",
+                                "url": href
+                            })
+                            alt_idx += 1
+
+            # 3. Magnets list
             magnet_tags = comment.find_all("a", href=lambda h: h and h.startswith("magnet:"))
             for m in magnet_tags:
                 mag_href = m["href"]
@@ -343,7 +367,7 @@ class TamilMVScraper:
                     "size": size,
                 })
 
-            # 3. Direct links and torrent attachments
+            # 4. Direct links and torrent attachments
             for a in comment.find_all("a", href=True):
                 href = a["href"]
                 text = a.get_text(strip=True)
