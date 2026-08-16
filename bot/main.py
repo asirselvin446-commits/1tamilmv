@@ -257,8 +257,60 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show help guide."""
     await start(update, context)
 
+def _build_page_message(
+    title_header: str,
+    movies: List[Dict],
+    page: int = 0,
+    page_size: int = 5,
+    page_type: str = "search"
+) -> tuple:
+    """Build a Rexxie-style paginated movie result message with interactive controls."""
+    total = len(movies)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = max(0, min(page, total_pages - 1))
+
+    start_idx = page * page_size
+    end_idx = min(start_idx + page_size, total)
+    current_batch = movies[start_idx:end_idx]
+
+    text = f"{title_header} (<b>{total}</b> found)\n"
+    text += f"📄 <b>Page {page + 1} of {total_pages}</b>\n\n"
+
+    for i, movie in enumerate(current_batch, start_idx + 1):
+        safe_title = html.escape(movie["title"])
+        safe_quality = html.escape(movie.get("quality", "Unknown"))
+        is_official = movie.get("score", 0) >= 2
+        badge = " ⭐️ <i>Official</i>" if is_official else ""
+        text += (
+            f"<b>{i}. {safe_title}</b>\n"
+            f"   📊 Quality: <code>{safe_quality}</code>{badge}\n\n"
+        )
+    text += "👇 <i>Tap a button below to get download links:</i>"
+
+    keyboard_buttons = []
+    # Row 1: Item buttons for this page
+    item_row = []
+    for i in range(start_idx, end_idx):
+        item_row.append(InlineKeyboardButton(f"📥 #{i + 1}", callback_data=f"get_{i}"))
+    if item_row:
+        keyboard_buttons.append(item_row)
+
+    # Row 2: Navigation controls
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ Prev", callback_data=f"page_{page_type}_{page - 1}"))
+    nav_row.append(InlineKeyboardButton(f"📄 {page + 1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"page_{page_type}_{page + 1}"))
+    keyboard_buttons.append(nav_row)
+
+    # Row 3: Close button
+    keyboard_buttons.append([InlineKeyboardButton("❌ Close", callback_data="cmd_close")])
+
+    return text, InlineKeyboardMarkup(keyboard_buttons)
+
 async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Fetch and display latest movie releases with interactive buttons."""
+    """Fetch and display latest movie releases with interactive pagination."""
     global last_scrape_time, last_movies
 
     user_id = update.effective_user.id if update.effective_user else 0
@@ -277,7 +329,7 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     wait_msg = await msg_target.reply_text("⏳ Scraping latest releases from 1TamilMV... Please wait.")
 
-    movies = await scraper.get_latest(limit=10)
+    movies = await scraper.get_latest(limit=25)
     if not movies:
         await wait_msg.edit_text(
             "❌ Could not reach 1TamilMV.\n"
@@ -290,36 +342,23 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if chat_id:
         movie_cache[chat_id] = movies
 
-    text = f"🆕 <b>Latest Movies on 1TamilMV</b> ({len(movies)} found)\n\n"
-    for i, movie in enumerate(movies, 1):
-        safe_title = html.escape(movie["title"])
-        safe_quality = html.escape(movie["quality"])
-        text += (
-            f"<b>{i}. {safe_title}</b>\n"
-            f"   📊 Quality: <code>{safe_quality}</code>\n\n"
-        )
-    text += "👇 <i>Tap a button below to get download links & details:</i>"
-
-    # Create grid of numbered buttons
-    keyboard_buttons = []
-    row = []
-    for i in range(1, len(movies) + 1):
-        row.append(InlineKeyboardButton(f"📥 #{i}", callback_data=f"get_{i-1}"))
-        if len(row) == 5:
-            keyboard_buttons.append(row)
-            row = []
-    if row:
-        keyboard_buttons.append(row)
+    text, markup = _build_page_message(
+        "🆕 <b>Latest Movies on 1TamilMV</b>",
+        movies,
+        page=0,
+        page_size=5,
+        page_type="latest"
+    )
 
     await wait_msg.edit_text(
         text,
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
-        reply_markup=InlineKeyboardMarkup(keyboard_buttons),
+        reply_markup=markup,
     )
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Search 1TamilMV by query."""
+    """Search 1TamilMV by query with deep multi-page search and interactive pagination."""
     if not update.message:
         return
 
@@ -342,7 +381,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     safe_query = html.escape(query)
     wait_msg = await update.message.reply_text(f"🔍 Searching 1TamilMV for '<b>{safe_query}</b>'...", parse_mode=ParseMode.HTML)
 
-    movies = await scraper.search(query, limit=10)
+    movies = await scraper.search(query, limit=50)
     if not movies:
         await wait_msg.edit_text(
             f"❌ No releases found for '<b>{safe_query}</b>'.\n"
@@ -354,31 +393,19 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if chat_id:
         movie_cache[chat_id] = movies
 
-    text = f"🔍 <b>Search Results for '{safe_query}'</b> ({len(movies)} found)\n\n"
-    for i, movie in enumerate(movies, 1):
-        safe_title = html.escape(movie["title"])
-        safe_quality = html.escape(movie["quality"])
-        text += (
-            f"<b>{i}. {safe_title}</b>\n"
-            f"   📊 Quality: <code>{safe_quality}</code>\n\n"
-        )
-    text += "👇 <i>Tap a button below to get download links:</i>"
-
-    keyboard_buttons = []
-    row = []
-    for i in range(1, len(movies) + 1):
-        row.append(InlineKeyboardButton(f"📥 #{i}", callback_data=f"get_{i-1}"))
-        if len(row) == 5:
-            keyboard_buttons.append(row)
-            row = []
-    if row:
-        keyboard_buttons.append(row)
+    text, markup = _build_page_message(
+        f"🔍 <b>Search Results for '{safe_query}'</b>",
+        movies,
+        page=0,
+        page_size=5,
+        page_type="search"
+    )
 
     await wait_msg.edit_text(
         text,
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
-        reply_markup=InlineKeyboardMarkup(keyboard_buttons),
+        reply_markup=markup,
     )
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -402,6 +429,34 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
     elif data == "cmd_status":
         await status(update, context)
+        return
+    elif data == "cmd_close":
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        return
+    elif data == "noop":
+        return
+    elif data.startswith("page_"):
+        parts = data.split("_")
+        page_type = parts[1]
+        target_page = int(parts[2])
+        cached = movie_cache.get(chat_id, last_movies)
+        if not cached:
+            await query.message.reply_text("⚠️ Search results expired. Please run /search or /latest again.")
+            return
+        header = "🔍 <b>Search Results</b>" if page_type == "search" else "🆕 <b>Latest Movies on 1TamilMV</b>"
+        text, markup = _build_page_message(header, cached, page=target_page, page_size=5, page_type=page_type)
+        try:
+            await query.edit_message_text(
+                text=text,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+                reply_markup=markup,
+            )
+        except Exception as e:
+            logger.debug(f"Pagination edit error: {e}")
         return
     elif data.startswith("get_"):
         try:

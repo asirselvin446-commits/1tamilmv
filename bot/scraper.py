@@ -128,9 +128,9 @@ class TamilMVScraper:
         logger.info(f"Parsed {len(movies)} movies from {base_url}")
         return movies
 
-    async def search(self, query: str, limit: int = 10) -> List[Dict]:
+    async def search(self, query: str, limit: int = 40) -> List[Dict]:
         """Search 1TamilMV using the search endpoint with intelligent keyword fallback and ranking."""
-        timeout = aiohttp.ClientTimeout(total=10, connect=4)
+        timeout = aiohttp.ClientTimeout(total=12, connect=4)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             domain = self.working_domain
             if not domain:
@@ -145,8 +145,8 @@ class TamilMVScraper:
             seen = set()
 
             for term in search_terms:
-                # Fetch up to 2 pages of search results to find both new and official archive releases
-                for page in range(1, 3):
+                # Fetch up to 4 pages of search results to find all available releases
+                for page in range(1, 5):
                     search_url = f"{domain}/index.php?/search/&q={quote_plus(term)}&search_in=titles&page={page}"
                     try:
                         probe_timeout = aiohttp.ClientTimeout(total=6)
