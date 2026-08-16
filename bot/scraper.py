@@ -129,7 +129,7 @@ class TamilMVScraper:
         return movies
 
     async def search(self, query: str, limit: int = 10) -> List[Dict]:
-        """Search 1TamilMV using the search endpoint with intelligent keyword fallback."""
+        """Search 1TamilMV using the search endpoint with intelligent keyword fallback and ranking."""
         timeout = aiohttp.ClientTimeout(total=10, connect=4)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             domain = self.working_domain
@@ -145,53 +145,58 @@ class TamilMVScraper:
             seen = set()
 
             for term in search_terms:
-                search_url = f"{domain}/index.php?/search/&q={quote_plus(term)}&search_in=titles"
-                try:
-                    probe_timeout = aiohttp.ClientTimeout(total=6)
-                    async with session.get(search_url, headers=self.HEADERS, ssl=False, timeout=probe_timeout) as resp:
-                        if resp.status != 200:
-                            continue
-                        html = await resp.text()
-                        soup = BeautifulSoup(html, "html.parser")
-
-                        for a in soup.find_all("a", href=True):
-                            href = a["href"]
-                            if "/topic/" not in href:
+                # Fetch up to 2 pages of search results to find both new and official archive releases
+                for page in range(1, 3):
+                    search_url = f"{domain}/index.php?/search/&q={quote_plus(term)}&search_in=titles&page={page}"
+                    try:
+                        probe_timeout = aiohttp.ClientTimeout(total=6)
+                        async with session.get(search_url, headers=self.HEADERS, ssl=False, timeout=probe_timeout) as resp:
+                            if resp.status != 200:
                                 continue
-                            title = a.get_text(strip=True)
-                            if not title or len(title) < 5:
-                                continue
-                            if title.lower() in ["languages", "reply", "replies", "next", "previous"]:
-                                continue
-                            if re.match(r"^\d+\s+repl(y|ies)$", title, re.I):
-                                continue
+                            html = await resp.text()
+                            soup = BeautifulSoup(html, "html.parser")
 
-                            clean_url = href.split("&do=findComment")[0]
-                            if clean_url in seen:
-                                continue
+                            for a in soup.find_all("a", href=True):
+                                href = a["href"]
+                                if "/topic/" not in href:
+                                    continue
+                                title = a.get_text(strip=True)
+                                if not title or len(title) < 5:
+                                    continue
+                                if title.lower() in ["languages", "reply", "replies", "next", "previous"]:
+                                    continue
+                                if re.match(r"^\d+\s+repl(y|ies)$", title, re.I):
+                                    continue
 
-                            # Verify that key terms match
-                            if not all(w.lower() in title.lower() for w in words):
-                                continue
+                                clean_url = href.split("&do=findComment")[0]
+                                if clean_url in seen:
+                                    continue
 
-                            seen.add(clean_url)
+                                # Verify that key terms match
+                                if not all(w.lower() in title.lower() for w in words):
+                                    continue
 
-                            quality = "Unknown"
-                            for q in ["4K", "2160p", "1080p", "720p", "480p", "HDRip", "WEB-DL", "BluRay", "HQ PreDVD", "PreDVD", "HD"]:
-                                if q.lower() in title.lower():
-                                    quality = q
-                                    break
+                                seen.add(clean_url)
 
-                            movies.append({
-                                "title": title,
-                                "url": urljoin(domain, clean_url),
-                                "quality": quality,
-                                "source": "1TamilMV",
-                            })
-                            if len(movies) >= limit:
-                                break
-                except Exception as e:
-                    logger.debug(f"Search request failed for {term}: {e}")
+                                quality = "Unknown"
+                                for q in ["4K", "2160p", "1080p", "720p", "480p", "HDRip", "WEB-DL", "BluRay", "HQ PreDVD", "PreDVD", "HD"]:
+                                    if q.lower() in title.lower():
+                                        quality = q
+                                        break
+
+                                # Calculate relevancy score (official/direct torrent titles scored higher)
+                                is_official = any(k in title.lower() for k in ["proper", "true web-dl", "bluray", "hdrip", "predvd", "official"])
+                                is_cloud_reupload = any(k in title.lower() for k in ["gdrive", "msd4k", "lrtx", "nowshort"])
+
+                                movies.append({
+                                    "title": title,
+                                    "url": urljoin(domain, clean_url),
+                                    "quality": quality,
+                                    "source": "1TamilMV",
+                                    "score": (2 if is_official else 1) - (1 if is_cloud_reupload else 0),
+                                })
+                    except Exception as e:
+                        logger.debug(f"Search request failed for {term} page {page}: {e}")
 
                 if movies:
                     break
@@ -202,6 +207,8 @@ class TamilMVScraper:
                 q_lower = query.lower()
                 movies = [m for m in latest_movies if q_lower in m["title"].lower()]
 
+            # Sort by relevancy score (official torrents first)
+            movies.sort(key=lambda x: x.get("score", 0), reverse=True)
             return movies[:limit]
 
     async def get_topic_details(self, topic_url: str) -> Dict:
@@ -239,6 +246,11 @@ class TamilMVScraper:
         direct_links = []
         releases = []
 
+        AD_DOMAINS = [
+            "gplinks", "nowshort", "shrinkme", "droplink", "shorturl",
+            "adbull", "linkvertise", "ouo.io", "adfocus", "tinyurl", "bitly"
+        ]
+
         if comment:
             all_links = comment.find_all("a", href=True)
 
@@ -273,8 +285,9 @@ class TamilMVScraper:
                                         size = f"{bytes_val / (1024**3):.2f} GB"
                                     elif bytes_val >= 1024**2:
                                         size = f"{bytes_val / (1024**2):.1f} MB"
-                        elif any(host in next_href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "1fichier", "mediafire"]):
-                            direct_url = next_href
+                        elif any(host in next_href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "1fichier", "mediafire", "streamtape"]):
+                            if not any(bad in next_href.lower() for bad in AD_DOMAINS):
+                                direct_url = next_href
 
                     releases.append({
                         "name": clean_name if len(clean_name) > 5 else title,
@@ -313,19 +326,19 @@ class TamilMVScraper:
                     })
                 i += 1
 
-            # 2. If NO torrent/magnet releases found, extract alternate download links
+            # 2. If NO torrent/magnet releases found, extract genuine alternate cloud links (excluding ad shorteners)
             if not releases:
                 alt_idx = 1
                 for a in all_links:
                     href = a["href"]
                     text = a.get_text(strip=True)
-                    if any(bad in href.lower() for bad in ["t.me/", "/topic/", "/forum/", "/profile/", "/login", ".jpg", ".png", ".gif", ".webp", "javascript:"]):
+                    if any(bad in href.lower() for bad in ["t.me/", "/topic/", "/forum/", "/profile/", "/login", ".jpg", ".png", ".gif", ".webp", "javascript:"] + AD_DOMAINS):
                         continue
-                    if href.startswith("http://") or href.startswith("https://"):
+                    if any(host in href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "1fichier", "mediafire", "terabox", "dropbox", "streamtape", "drive.google.com"]):
                         if not any(r.get("direct_url") == href for r in releases):
-                            label = text if text and len(text) > 3 and not text.startswith("http") else f"Alternate Link #{alt_idx}"
+                            label = text if text and len(text) > 3 and not text.startswith("http") else f"Cloud Mirror #{alt_idx}"
                             releases.append({
-                                "name": f"Alternate Link #{alt_idx} ({label})" if label != f"Alternate Link #{alt_idx}" else f"Alternate Link #{alt_idx}",
+                                "name": f"Cloud Mirror #{alt_idx} ({label})" if label != f"Cloud Mirror #{alt_idx}" else f"Cloud Mirror #{alt_idx}",
                                 "size": "N/A",
                                 "torrent_url": "",
                                 "magnet": "",
@@ -367,10 +380,12 @@ class TamilMVScraper:
                     "size": size,
                 })
 
-            # 4. Direct links and torrent attachments
+            # 4. Direct links and torrent attachments (excluding ad shorteners)
             for a in comment.find_all("a", href=True):
                 href = a["href"]
                 text = a.get_text(strip=True)
+                if any(bad in href.lower() for bad in AD_DOMAINS):
+                    continue
                 if any(host in href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "attachment.php"]):
                     if not any(d["url"] == href for d in direct_links):
                         clean_name = re.sub(r"^www\.[^ -]+ - ", "", text, flags=re.I)
