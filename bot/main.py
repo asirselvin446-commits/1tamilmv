@@ -176,6 +176,8 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
             f"🎬 <b>Release #{i}: {t_name}</b>",
             f"📦 <b>Size:</b> <code>{t_size}</code>",
         ]
+        if t_mag:
+            lines.append(f"👉 <a href='{t_mag}'>🧲 <b>Tap to Open Magnet Link</b></a>")
         if t_torrent_url:
             lines.append(f"👉 <a href='{t_torrent_url}'>📥 <b>Tap to Download (.torrent file)</b></a>")
         if t_direct_url:
