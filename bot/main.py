@@ -171,8 +171,6 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
             lines.append(f"👉 <a href='{t_torrent_url}'>📥 <b>Tap to Download (.torrent file)</b></a>")
         if t_direct_url:
             lines.append(f"👉 <a href='{t_direct_url}'>⚡ <b>Tap for Fast Cloud Link</b></a>")
-        if t_mag:
-            lines.append(f"🧲 <b>Magnet Link:</b> (Tap code to copy)\n<code>{t_mag}</code>")
 
         release_blocks.append("\n".join(lines))
 
@@ -273,7 +271,7 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"<b>{i}. {safe_title}</b>\n"
             f"   📊 Quality: <code>{safe_quality}</code>\n\n"
         )
-    text += "👇 <i>Tap a button below to get Magnet links & details:</i>"
+    text += "👇 <i>Tap a button below to get download links & details:</i>"
 
     # Create grid of numbered buttons
     keyboard_buttons = []
@@ -332,7 +330,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"<b>{i}. {safe_title}</b>\n"
             f"   📊 Quality: <code>{safe_quality}</code>\n\n"
         )
-    text += "👇 <i>Tap a button below to get Magnet links:</i>"
+    text += "👇 <i>Tap a button below to get download links:</i>"
 
     keyboard_buttons = []
     row = []
