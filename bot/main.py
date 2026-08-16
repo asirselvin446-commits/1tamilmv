@@ -7,13 +7,14 @@ import sys
 from datetime import datetime
 from typing import Dict, List
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import (
     Application,
     CommandHandler,
     ContextTypes,
     CallbackQueryHandler,
     MessageHandler,
+    InlineQueryHandler,
     filters,
 )
 from telegram.constants import ParseMode
@@ -508,6 +509,86 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     await msg_target.reply_text(text, parse_mode=ParseMode.HTML)
 
+async def text_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle direct plain text queries (Rexxie style) as movie searches."""
+    if not update.message or not update.message.text:
+        return
+
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_authorized(user_id):
+        await update.message.reply_text("⛔ <b>Access Denied:</b> This bot is set to private mode.", parse_mode=ParseMode.HTML)
+        return
+
+    query = update.message.text.strip()
+    if query.startswith("/"):
+        return
+
+    chat_id = update.effective_chat.id if update.effective_chat else 0
+    safe_query = html.escape(query)
+    wait_msg = await update.message.reply_text(f"🔍 Searching 1TamilMV for '<b>{safe_query}</b>'...", parse_mode=ParseMode.HTML)
+
+    movies = await scraper.search(query, limit=50)
+    if not movies:
+        await wait_msg.edit_text(
+            f"❌ No releases found for '<b>{safe_query}</b>'.\n"
+            f"Tip: Try searching with a single key word (e.g. <code>Idhayam</code>, <code>Murali</code>, or <code>Beast</code>).",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+
+    if chat_id:
+        movie_cache[chat_id] = movies
+
+    text, markup = _build_page_message(
+        f"🔍 <b>Search Results for '{safe_query}'</b>",
+        movies,
+        page=0,
+        page_size=5,
+        page_type="search"
+    )
+
+    await wait_msg.edit_text(
+        text,
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+        reply_markup=markup,
+    )
+
+async def inline_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle inline queries (@bot query) for quick movie search across Telegram."""
+    if not update.inline_query:
+        return
+
+    query = update.inline_query.query.strip()
+    user_id = update.effective_user.id if update.effective_user else 0
+    if not is_authorized(user_id):
+        return
+
+    if not query:
+        return
+
+    movies = await scraper.search(query, limit=15)
+    results = []
+    for idx, m in enumerate(movies):
+        safe_title = html.escape(m["title"])
+        safe_quality = html.escape(m.get("quality", "HD"))
+        text = f"🎬 <b>{safe_title}</b>\n📊 Quality: <code>{safe_quality}</code>\n🔗 <a href='{m['url']}'>View on 1TamilMV</a>"
+        buttons = [[InlineKeyboardButton("📥 Open on 1TamilMV", url=m["url"])]]
+        results.append(
+            InlineQueryResultArticle(
+                id=str(idx),
+                title=m["title"][:64],
+                description=f"Quality: {m.get('quality', 'HD')}",
+                input_message_content=InputTextMessageContent(text, parse_mode=ParseMode.HTML, disable_web_page_preview=False),
+                reply_markup=InlineKeyboardMarkup(buttons),
+            )
+        )
+
+    try:
+        await update.inline_query.answer(results, cache_time=300)
+    except Exception as e:
+        logger.debug(f"Inline query answer error: {e}")
+
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle unknown commands."""
     user_id = update.effective_user.id if update.effective_user else 0
@@ -642,6 +723,12 @@ def main() -> None:
 
     # Interactive buttons callback handler
     application.add_handler(CallbackQueryHandler(handle_callback))
+
+    # Inline query handler (@bot query)
+    application.add_handler(InlineQueryHandler(inline_search))
+
+    # Plain text movie search handler (Rexxie style)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_search))
 
     # Unknown command fallback
     application.add_handler(MessageHandler(filters.COMMAND, unknown))
