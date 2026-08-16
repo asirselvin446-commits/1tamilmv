@@ -82,12 +82,20 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
     safe_topic_url = html.escape(topic_url)
 
     total_releases = len(releases) if releases else len(torrents)
-    header_text = (
-        f"🎬 <b>{safe_title}</b>\n\n"
-        f"📦 <b>Releases:</b> <code>{total_releases} available</code>\n"
-        f"🔗 <a href='{safe_topic_url}'>View on 1TamilMV</a>\n\n"
-        f"👇 <i>Tap any button below to start downloading:</i>"
-    )
+    if total_releases > 0:
+        header_text = (
+            f"🎬 <b>{safe_title}</b>\n\n"
+            f"📦 <b>Releases:</b> <code>{total_releases} available</code>\n"
+            f"🔗 <a href='{safe_topic_url}'>View on 1TamilMV</a>\n\n"
+            f"👇 <i>Tap any button below to start downloading:</i>"
+        )
+    else:
+        header_text = (
+            f"🎬 <b>{safe_title}</b>\n\n"
+            f"📦 <b>Releases:</b> <code>0 direct torrents</code>\n"
+            f"🔗 <a href='{safe_topic_url}'>View on 1TamilMV</a>\n\n"
+            f"⚠️ <i>This specific forum post contains no direct torrent/magnet attachments. Check other search results (e.g. #2, #3) for complete torrent releases of this movie.</i>"
+        )
 
     buttons = []
     # Add direct tap-to-download buttons for each release

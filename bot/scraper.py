@@ -273,7 +273,7 @@ class TamilMVScraper:
                                         size = f"{bytes_val / (1024**3):.2f} GB"
                                     elif bytes_val >= 1024**2:
                                         size = f"{bytes_val / (1024**2):.1f} MB"
-                        elif any(host in next_href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "shrinkme"]):
+                        elif any(host in next_href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "1fichier", "mediafire"]):
                             direct_url = next_href
 
                     releases.append({
@@ -347,7 +347,7 @@ class TamilMVScraper:
             for a in comment.find_all("a", href=True):
                 href = a["href"]
                 text = a.get_text(strip=True)
-                if any(host in href.lower() for host in ["shrinkme", "cyberloom", "gofile", "mega.nz", "pixeldrain", "streamtape", "attachment.php"]):
+                if any(host in href.lower() for host in ["cyberloom", "gofile", "mega.nz", "pixeldrain", "attachment.php"]):
                     if not any(d["url"] == href for d in direct_links):
                         clean_name = re.sub(r"^www\.[^ -]+ - ", "", text, flags=re.I)
                         if "attachment.php" in href.lower() or href.lower().endswith(".torrent") or text.lower().endswith(".torrent"):
