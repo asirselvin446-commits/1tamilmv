@@ -185,9 +185,6 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
             lines.append(f"• <a href='{d_url}'>{d_name}</a>")
         mirror_blocks.append("\n".join(lines))
 
-    if not release_blocks and not mirror_blocks:
-        release_blocks.append("⚠️ <i>No direct download links found in this topic. Open the website link to view topic details.</i>")
-
     # 3. Group blocks into messages under 3800 chars without breaking tags
     grouped_messages = []
     current_msg = ""
