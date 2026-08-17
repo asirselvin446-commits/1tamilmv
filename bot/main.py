@@ -831,6 +831,12 @@ def main() -> None:
     # Unknown command fallback
     application.add_handler(MessageHandler(filters.COMMAND, unknown))
 
+    # Error handler
+    async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        logger.warning(f"Telegram update error: {context.error}")
+
+    application.add_error_handler(error_handler)
+
     # Background auto-poster job
     job_queue = application.job_queue
     if job_queue and Config.CHANNEL_ID and Config.CHANNEL_ID not in [0, -1001234567890, 8370772224]:
