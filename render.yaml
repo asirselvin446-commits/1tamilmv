@@ -8,6 +8,10 @@ services:
     envVars:
       - key: TOKEN
         sync: false
+      - key: ADMIN_ID
+        sync: false
+      - key: ALLOWED_USERS
+        sync: false
       - key: CHANNEL_ID
         sync: false
       - key: CHANNEL_USERNAME
