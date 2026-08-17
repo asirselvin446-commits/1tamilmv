@@ -396,9 +396,15 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     movies = await scraper.search(query, limit=50)
     if not movies:
+        short_hint = ""
+        if len(query.strip()) < 4:
+            short_hint = (
+                "\n\n💡 <b>Note:</b> 1TamilMV's forum search engine ignores keywords shorter than 4 letters (e.g. <code>DNA</code>, <code>Leo</code>, <code>Don</code>).\n"
+                "👉 Try searching with the <b>lead actor name</b> (e.g. <code>Atharvaa</code>) or a related keyword."
+            )
         await wait_msg.edit_text(
-            f"❌ No releases found for '<b>{safe_query}</b>'.\n"
-            f"Tip: Try searching with a single key word (e.g. <code>/search Idhayam</code> or <code>/search Murali</code>).",
+            f"❌ No releases found for '<b>{safe_query}</b>'.{short_hint}\n\n"
+            f"<i>Tip: Use 4+ letter movie names like <code>JanaNayagan</code>, <code>Amaran</code>, <code>Dragon</code>, <code>Kanguva</code>.</i>",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -538,9 +544,15 @@ async def text_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     movies = await scraper.search(query, limit=50)
     if not movies:
+        short_hint = ""
+        if len(query.strip()) < 4:
+            short_hint = (
+                "\n\n💡 <b>Note:</b> 1TamilMV's search engine ignores 3-letter keywords (e.g. <code>DNA</code>, <code>Leo</code>, <code>Don</code>).\n"
+                "👉 Try searching with the <b>lead actor name</b> (e.g. <code>Atharvaa</code>) or a related keyword."
+            )
         await wait_msg.edit_text(
-            f"❌ No releases found for '<b>{safe_query}</b>'.\n"
-            f"Tip: Try searching with a single key word (e.g. <code>Idhayam</code>, <code>Murali</code>, or <code>Beast</code>).",
+            f"❌ No releases found for '<b>{safe_query}</b>'.{short_hint}\n\n"
+            f"<i>Tip: Use 4+ letter movie names like <code>JanaNayagan</code>, <code>Amaran</code>, <code>Dragon</code>, <code>Kanguva</code>.</i>",
             parse_mode=ParseMode.HTML,
         )
         return
