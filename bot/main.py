@@ -1,7 +1,9 @@
 """Main entry point for 1TamilVT-TG Telegram Bot."""
 import asyncio
 import html
+import json
 import logging
+import os
 import re
 import sys
 from datetime import datetime
@@ -46,8 +48,30 @@ last_movies: List[Dict] = []
 movie_cache: Dict[int, List[Dict]] = {}
 # History of posted URLs to prevent duplicates in channel
 posted_topics: set = set()
-# Dynamic list of allowed users added via /allow command
-dynamic_allowed_users: set = set()
+# Dynamic list of allowed users added via /allow command — persisted to disk
+ALLOWED_USERS_FILE = os.path.join("data", "allowed_users.json")
+
+def _load_allowed_users() -> set:
+    """Load allowed users from persistent JSON file."""
+    try:
+        if os.path.exists(ALLOWED_USERS_FILE):
+            with open(ALLOWED_USERS_FILE, "r") as f:
+                data = json.load(f)
+                return set(int(uid) for uid in data)
+    except Exception as e:
+        logger.warning(f"Failed to load allowed users file: {e}")
+    return set()
+
+def _save_allowed_users() -> None:
+    """Save allowed users to persistent JSON file."""
+    try:
+        os.makedirs(os.path.dirname(ALLOWED_USERS_FILE), exist_ok=True)
+        with open(ALLOWED_USERS_FILE, "w") as f:
+            json.dump(list(dynamic_allowed_users), f)
+    except Exception as e:
+        logger.warning(f"Failed to save allowed users file: {e}")
+
+dynamic_allowed_users: set = _load_allowed_users()
 
 # ── Helpers ──────────────────────────────────────────────────────────
 def is_authorized(user_id: int) -> bool:
@@ -648,8 +672,10 @@ async def allow_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     target_id = int(context.args[0])
     dynamic_allowed_users.add(target_id)
+    _save_allowed_users()
     await update.message.reply_text(
-        f"✅ User <code>{target_id}</code> is now authorized to use this bot!",
+        f"✅ User <code>{target_id}</code> is now authorized to use this bot!\n"
+        f"<i>This access will persist across bot restarts.</i>",
         parse_mode=ParseMode.HTML,
     )
 
@@ -674,6 +700,7 @@ async def revoke_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     dynamic_allowed_users.discard(target_id)
     if target_id in Config.ALLOWED_USERS:
         Config.ALLOWED_USERS.remove(target_id)
+    _save_allowed_users()
     await update.message.reply_text(
         f"🚫 Access revoked for user <code>{target_id}</code>.",
         parse_mode=ParseMode.HTML,
