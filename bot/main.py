@@ -18,6 +18,7 @@ from telegram.ext import (
     filters,
 )
 from telegram.constants import ParseMode
+import aiohttp
 
 from bot.config import Config
 from bot.scraper import TamilMVScraper
@@ -108,21 +109,22 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
 
     safe_title = html.escape(movie_title)
     safe_topic_url = html.escape(topic_url)
+    source_label = "YTS Movie HD" if "yts.mx" in topic_url else "1TamilMV"
 
     total_releases = len(releases) if releases else len(torrents)
     if total_releases > 0:
         header_text = (
             f"🎬 <b>{safe_title}</b>\n\n"
             f"📦 <b>Releases:</b> <code>{total_releases} available</code>\n"
-            f"🔗 <a href='{safe_topic_url}'>View on 1TamilMV</a>\n\n"
+            f"🔗 <a href='{safe_topic_url}'>View on {source_label}</a>\n\n"
             f"👇 <i>Tap any button below to start downloading:</i>"
         )
     else:
         header_text = (
             f"🎬 <b>{safe_title}</b>\n\n"
             f"📦 <b>Releases:</b> <code>0 direct torrents</code>\n"
-            f"🔗 <a href='{safe_topic_url}'>View on 1TamilMV</a>\n\n"
-            f"⚠️ <i>This specific forum post contains no direct torrent/magnet attachments. Check other search results (e.g. #2, #3) for complete torrent releases of this movie.</i>"
+            f"🔗 <a href='{safe_topic_url}'>View on {source_label}</a>\n\n"
+            f"⚠️ <i>This specific release entry has no direct torrent/magnet attachments. Check other search results for alternative versions.</i>"
         )
 
     buttons = []
@@ -132,12 +134,14 @@ async def _send_topic_details(target, context: ContextTypes.DEFAULT_TYPE, topic_
         size_str = f" ({r['size']})" if r.get('size') and r['size'] != 'N/A' else ""
         if r.get("torrent_url"):
             row.append(InlineKeyboardButton(f"📥 Download #{i}{size_str}", url=r["torrent_url"]))
+        elif r.get("magnet"):
+            row.append(InlineKeyboardButton(f"🧲 Magnet #{i}{size_str}", url=r["magnet"]))
         if r.get("direct_url"):
             row.append(InlineKeyboardButton(f"⚡ Fast #{i}", url=r["direct_url"]))
         if row:
             buttons.append(row)
 
-    buttons.append([InlineKeyboardButton("🌐 Open on 1TamilMV", url=topic_url)])
+    buttons.append([InlineKeyboardButton(f"🌐 Open on {source_label}", url=topic_url)])
     reply_markup = InlineKeyboardMarkup(buttons)
 
     # 1. Send Header (with poster photo if available)
@@ -295,10 +299,12 @@ def _build_page_message(
     for i, movie in enumerate(current_batch, start_idx + 1):
         safe_title = html.escape(movie["title"])
         safe_quality = html.escape(movie.get("quality", "Unknown"))
+        source = html.escape(movie.get("source", "1TamilMV"))
         is_official = movie.get("score", 0) >= 2
         badge = " ⭐️ <i>Official</i>" if is_official else ""
+        source_badge = f" [<code>{source}</code>]" if source != "1TamilMV" else ""
         text += (
-            f"<b>{i}. {safe_title}</b>\n"
+            f"<b>{i}. {safe_title}</b>{source_badge}\n"
             f"   📊 Quality: <code>{safe_quality}</code>{badge}\n\n"
         )
     text += "👇 <i>Tap a button below to get download links:</i>"
@@ -371,7 +377,7 @@ async def latest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Search 1TamilMV by query with deep multi-page search and interactive pagination."""
+    """Search movies across 1TamilMV, local SQLite catalog, and multi-source indexers."""
     if not update.message:
         return
 
@@ -384,7 +390,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if not context.args:
         await update.message.reply_text(
-            "⚠️ <b>Usage:</b> <code>/search Idhayam Murali</code>\n"
+            "⚠️ <b>Usage:</b> <code>/search DNA</code> or <code>/search Leo</code> or <code>/search Amaran</code>\n"
             "Please provide a movie name to search.",
             parse_mode=ParseMode.HTML,
         )
@@ -392,19 +398,16 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     query = " ".join(context.args)
     safe_query = html.escape(query)
-    wait_msg = await update.message.reply_text(f"🔍 Searching 1TamilMV for '<b>{safe_query}</b>'...", parse_mode=ParseMode.HTML)
+    wait_msg = await update.message.reply_text(f"🔍 Searching for '<b>{safe_query}</b>' across 1TamilMV & torrent indexers...", parse_mode=ParseMode.HTML)
 
     movies = await scraper.search(query, limit=50)
     if not movies:
-        short_hint = ""
-        if len(query.strip()) < 4:
-            short_hint = (
-                "\n\n💡 <b>Note:</b> 1TamilMV's forum search engine ignores keywords shorter than 4 letters (e.g. <code>DNA</code>, <code>Leo</code>, <code>Don</code>).\n"
-                "👉 Try searching with the <b>lead actor name</b> (e.g. <code>Atharvaa</code>) or a related keyword."
-            )
         await wait_msg.edit_text(
-            f"❌ No releases found for '<b>{safe_query}</b>'.{short_hint}\n\n"
-            f"<i>Tip: Use 4+ letter movie names like <code>JanaNayagan</code>, <code>Amaran</code>, <code>Dragon</code>, <code>Kanguva</code>.</i>",
+            f"❌ No releases found for '<b>{safe_query}</b>'.\n\n"
+            f"💡 <b>Search Suggestions:</b>\n"
+            f"• Try searching with the <b>lead actor name</b> (e.g. <code>Atharvaa</code>, <code>Vijay</code>, <code>Sivakarthikeyan</code>).\n"
+            f"• Try adding the release year (e.g. <code>{safe_query} 2024</code>).\n"
+            f"• Try checking spelling or searching by director / alternate title.",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -511,10 +514,12 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     channel_name = html.escape(Config.CHANNEL_USERNAME or "Not Set")
     all_auth = Config.get_authorized_users().union(dynamic_allowed_users)
     privacy_status = f"Private ({len(all_auth)} authorized)" if all_auth else "Public"
+    catalog_count = scraper.catalog.get_total_count()
 
     text = (
         f"🤖 <b>1TamilVT-TG Bot Status</b>\n\n"
         f"🌐 <b>Active Mirror:</b> <code>{active_mirror}</code>\n"
+        f"📚 <b>Catalog DB:</b> <code>{catalog_count} indexed releases</code>\n"
         f"🔒 <b>Privacy Mode:</b> <code>{privacy_status}</code>\n"
         f"🕐 <b>Last Scrape:</b> {uptime_str}\n"
         f"📦 <b>Cached Releases:</b> {len(last_movies)}\n"
@@ -540,19 +545,16 @@ async def text_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     chat_id = update.effective_chat.id if update.effective_chat else 0
     safe_query = html.escape(query)
-    wait_msg = await update.message.reply_text(f"🔍 Searching 1TamilMV for '<b>{safe_query}</b>'...", parse_mode=ParseMode.HTML)
+    wait_msg = await update.message.reply_text(f"🔍 Searching for '<b>{safe_query}</b>' across 1TamilMV & torrent indexers...", parse_mode=ParseMode.HTML)
 
     movies = await scraper.search(query, limit=50)
     if not movies:
-        short_hint = ""
-        if len(query.strip()) < 4:
-            short_hint = (
-                "\n\n💡 <b>Note:</b> 1TamilMV's search engine ignores 3-letter keywords (e.g. <code>DNA</code>, <code>Leo</code>, <code>Don</code>).\n"
-                "👉 Try searching with the <b>lead actor name</b> (e.g. <code>Atharvaa</code>) or a related keyword."
-            )
         await wait_msg.edit_text(
-            f"❌ No releases found for '<b>{safe_query}</b>'.{short_hint}\n\n"
-            f"<i>Tip: Use 4+ letter movie names like <code>JanaNayagan</code>, <code>Amaran</code>, <code>Dragon</code>, <code>Kanguva</code>.</i>",
+            f"❌ No releases found for '<b>{safe_query}</b>'.\n\n"
+            f"💡 <b>Search Suggestions:</b>\n"
+            f"• Try searching with the <b>lead actor name</b> (e.g. <code>Atharvaa</code>, <code>Vijay</code>, <code>Sivakarthikeyan</code>).\n"
+            f"• Try adding the release year (e.g. <code>{safe_query} 2024</code>).\n"
+            f"• Try checking spelling or searching by director / alternate title.",
             parse_mode=ParseMode.HTML,
         )
         return
@@ -787,6 +789,20 @@ async def auto_post(context: ContextTypes.DEFAULT_TYPE) -> None:
         except Exception as e:
             logger.error(f"Failed to push post to channel {Config.CHANNEL_ID}: {e}")
 
+async def auto_sync_catalog(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Periodic background task to sync recent forum topics into the local SQLite catalog."""
+    try:
+        timeout = aiohttp.ClientTimeout(total=25, connect=5)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            domain = scraper.working_domain
+            if not domain:
+                domain = await scraper._find_working_domain(session)
+            if domain:
+                count = await scraper.catalog.sync_all_forums(session, domain, scraper.HEADERS, max_pages=2)
+                logger.info(f"Background catalog sync completed: {count} movies processed.")
+    except Exception as e:
+        logger.debug(f"Catalog sync job error: {e}")
+
 def _start_health_server() -> None:
     """Lightweight background HTTP server for Render/Koyeb/UptimeRobot health checks."""
     import threading
@@ -864,8 +880,12 @@ def main() -> None:
 
     # Background auto-poster job
     job_queue = application.job_queue
-    if job_queue and Config.CHANNEL_ID and Config.CHANNEL_ID not in [0, -1001234567890, 8370772224]:
-        job_queue.run_repeating(auto_post, interval=Config.SCRAPE_INTERVAL, first=15)
+    if job_queue:
+        # Auto-sync catalog in the background every 10 minutes
+        job_queue.run_repeating(auto_sync_catalog, interval=600, first=5)
+
+        if Config.CHANNEL_ID and Config.CHANNEL_ID not in [0, -1001234567890, 8370772224]:
+            job_queue.run_repeating(auto_post, interval=Config.SCRAPE_INTERVAL, first=15)
 
     logger.info("🚀 1TamilVT-TG Bot starting in Polling Mode...")
 
