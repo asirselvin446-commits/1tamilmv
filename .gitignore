@@ -19,3 +19,7 @@ logs/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Database & local data
+data/
+*.db

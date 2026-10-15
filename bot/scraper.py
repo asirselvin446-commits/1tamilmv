@@ -136,16 +136,19 @@ class TamilMVScraper:
         return all_doms
 
     async def _find_working_domain(self, session: aiohttp.ClientSession) -> Optional[str]:
-        """Rotate through domains and find one that responds."""
+        """Rotate through domains and find one that responds and delivers HTML."""
         domains = self._get_domains()
         for domain in domains:
             try:
-                probe_timeout = aiohttp.ClientTimeout(total=3, connect=2)
-                async with session.get(domain, headers=self.HEADERS, ssl=False, timeout=probe_timeout) as resp:
+                probe_url = f"{domain}/?_x_tr_sl=auto&_x_tr_tl=en" if "translate.goog" in domain else domain
+                probe_timeout = aiohttp.ClientTimeout(total=4, connect=2)
+                async with session.get(probe_url, headers=self.HEADERS, ssl=False, timeout=probe_timeout) as resp:
                     if resp.status == 200:
-                        logger.info(f"Working domain found: {domain}")
-                        self.working_domain = domain
-                        return domain
+                        body = await resp.read()
+                        if len(body) > 500:
+                            logger.info(f"Working domain found: {domain}")
+                            self.working_domain = domain
+                            return domain
             except Exception as e:
                 logger.debug(f"Domain probe failed {domain}: {e}")
                 continue
@@ -163,7 +166,7 @@ class TamilMVScraper:
                 # Fallback to local catalog if site is unreachable
                 return self.catalog.search("", limit=limit)
 
-            url = domain + "/"
+            url = f"{domain}/?_x_tr_sl=auto&_x_tr_tl=en" if "translate.goog" in domain else f"{domain}/"
             try:
                 async with session.get(url, headers=self.HEADERS, ssl=False) as resp:
                     if resp.status != 200:
@@ -280,11 +283,11 @@ class TamilMVScraper:
         API endpoint: {domain}/search/api/search.php?q=...&sort=date_desc&page=N&per_page=N
         Returns JSON: {results: [{tid, title, author, date, replies, views, ...}], total, page, per_page, page_count}
         """
-        # The API always lives on the canonical .ing domain regardless of which
-        # proxy domain the user connected through, but we try the working domain first.
+        # The API endpoint with Google Translate proxy fallback for guaranteed access
         api_urls = []
         api_urls.append(f"{domain}{SEARCH_API_PATH}")
-        # Fallback: canonical domain
+        if "translate.goog" not in domain:
+            api_urls.append(f"https://www-1tamilmv-solar.translate.goog{SEARCH_API_PATH}")
         if "1tamilmv.ing" not in domain:
             api_urls.append(f"https://www.1tamilmv.ing{SEARCH_API_PATH}")
 
@@ -588,17 +591,33 @@ class TamilMVScraper:
         if "yts.mx" in topic_url:
             return await self._get_yts_topic_details(topic_url)
 
-        timeout = aiohttp.ClientTimeout(total=12, connect=5)
+        timeout = aiohttp.ClientTimeout(total=8, connect=4)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
-                async with session.get(topic_url, headers=self.HEADERS, ssl=False) as resp:
-                    if resp.status != 200:
-                        return {"error": f"HTTP {resp.status}"}
-                    html = await resp.text()
-                    return self._parse_topic_html(html, topic_url)
+                fetch_url = topic_url
+                if "translate.goog" in topic_url and "_x_tr_sl" not in topic_url:
+                    fetch_url = f"{topic_url}&_x_tr_sl=auto&_x_tr_tl=en"
+                async with session.get(fetch_url, headers=self.HEADERS, ssl=False) as resp:
+                    if resp.status == 200:
+                        html = await resp.text()
+                        return self._parse_topic_html(html, topic_url)
             except Exception as e:
-                logger.error(f"Failed to fetch topic details for {topic_url}: {e}")
-                return {"error": str(e)}
+                logger.warning(f"Direct topic fetch failed for {topic_url}: {e}")
+
+            # Fallback to Google Translate mirror if direct connection fails (bypasses ISP blocks)
+            try:
+                m = re.search(r'(/index\.php\?/forums/topic/[^/\s]+(?:/[^/\s]*)?)', topic_url)
+                topic_path = m.group(1) if m else ""
+                if topic_path:
+                    gt_url = f"https://www-1tamilmv-solar.translate.goog{topic_path}&_x_tr_sl=auto&_x_tr_tl=en"
+                    async with session.get(gt_url, headers=self.HEADERS, ssl=False, timeout=aiohttp.ClientTimeout(total=10, connect=4)) as resp:
+                        if resp.status == 200:
+                            html = await resp.text()
+                            return self._parse_topic_html(html, topic_url)
+            except Exception as gt_err:
+                logger.error(f"Google translate topic fallback failed for {topic_url}: {gt_err}")
+
+            return {"error": "Failed to reach 1TamilMV. The mirror may be blocked or undergoing maintenance."}
 
     async def _get_yts_topic_details(self, yts_url: str) -> Dict:
         """Extract torrent and magnet links from a YTS movie page or API."""

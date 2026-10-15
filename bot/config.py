@@ -24,6 +24,10 @@ class Config:
 
     # Fallback proxy list for 1TamilMV domains
     PROXY_DOMAINS: list = [
+        "https://www-1tamilmv-solar.translate.goog",
+        "https://www.1tamilmv.capital",
+        "https://www.1tamilmv.li",
+        "https://www.1tamilmv.solar",
         "https://www.1tamilmv.ing",
         "https://www.1tamilmv.pm",
         "https://www.1tamilmv.vin",

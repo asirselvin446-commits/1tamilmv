@@ -447,12 +447,20 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         page_type="search"
     )
 
-    await wait_msg.edit_text(
-        text,
-        parse_mode=ParseMode.HTML,
-        disable_web_page_preview=True,
-        reply_markup=markup,
-    )
+    try:
+        await wait_msg.edit_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=markup,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to edit search message with HTML, retrying plain text: {e}")
+        plain = re.sub(r"<[^>]+>", "", text)
+        try:
+            await wait_msg.edit_text(plain, disable_web_page_preview=True, reply_markup=markup)
+        except Exception as e2:
+            logger.error(f"Failed to edit search message fallback: {e2}")
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle interactive inline buttons."""
@@ -594,12 +602,20 @@ async def text_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         page_type="search"
     )
 
-    await wait_msg.edit_text(
-        text,
-        parse_mode=ParseMode.HTML,
-        disable_web_page_preview=True,
-        reply_markup=markup,
-    )
+    try:
+        await wait_msg.edit_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+            reply_markup=markup,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to edit text_search message with HTML, retrying plain text: {e}")
+        plain = re.sub(r"<[^>]+>", "", text)
+        try:
+            await wait_msg.edit_text(plain, disable_web_page_preview=True, reply_markup=markup)
+        except Exception as e2:
+            logger.error(f"Failed to edit text_search message fallback: {e2}")
 
 async def inline_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle inline queries (@bot query) for quick movie search across Telegram."""
@@ -872,7 +888,8 @@ def _start_health_server() -> None:
 def main() -> None:
     """Start the bot."""
     Config.validate()
-    _start_health_server()
+    if not Config.WEBHOOK_URL:
+        _start_health_server()
 
     application = Application.builder().token(Config.TOKEN).build()
 

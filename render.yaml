@@ -1,5 +1,5 @@
 services:
-  - type: worker
+  - type: web
     name: 1tamilvtg-bot
     runtime: python
     buildCommand: pip install -r requirements.txt
@@ -17,8 +17,9 @@ services:
       - key: CHANNEL_USERNAME
         sync: false
       - key: TAMILMV_URL
-        value: https://www.1tamilmv.ing
+        value: https://www-1tamilmv-solar.translate.goog
       - key: SCRAPE_INTERVAL
         value: "300"
       - key: LOG_LEVEL
         value: INFO
+

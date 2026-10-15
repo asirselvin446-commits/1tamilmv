@@ -4,8 +4,9 @@ import logging
 import os
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Generator, List, Optional
 from urllib.parse import urljoin
 
 import aiohttp
@@ -23,11 +24,15 @@ class MovieCatalog:
         self.db_path = db_path
         self._init_db()
 
-    def _get_connection(self) -> sqlite3.Connection:
+    @contextmanager
+    def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     def _init_db(self):
         """Initialize SQLite tables and indexes."""
